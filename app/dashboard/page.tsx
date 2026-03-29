@@ -122,6 +122,16 @@ export default function Dashboard() {
                             </div>
                         </Link>
 
+                        <Link href="/dashboard/tasks" 
+                              className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 rounded-xl hover:shadow-md transition-shadow border border-zinc-100 dark:border-zinc-800 group border-l-4 border-l-blue-500">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                                    <BookOpen className="w-4 h-4" />
+                                </div>
+                                <span className="text-sm font-semibold text-zinc-900 dark:text-white">Menaxho Detyrat</span>
+                            </div>
+                        </Link>
+
                         <div 
                               className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl opacity-60 cursor-not-allowed">
                             <div className="flex items-center gap-3">
