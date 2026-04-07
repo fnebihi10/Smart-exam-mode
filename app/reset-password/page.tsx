@@ -1,12 +1,57 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
-import { Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Lock } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import AuthShell from '@/components/auth/AuthShell'
+import { useAuthLocale } from '@/components/auth/useAuthLocale'
+
+const copy = {
+  en: {
+    badge: 'Set New Password',
+    title: 'Finish the reset flow with a cleaner screen.',
+    description: 'The reset step uses the same centered structure and bilingual support as the rest of the auth flow.',
+    password: 'New password',
+    confirmPassword: 'Confirm password',
+    passwordPlaceholder: 'Enter your new password',
+    confirmPlaceholder: 'Repeat your password',
+    invalidPassword: 'Password must be at least 6 characters.',
+    mismatch: 'Passwords do not match.',
+    submit: 'Save new password',
+    loading: 'Saving...',
+    success: 'Password updated successfully.',
+    back: 'Back to sign in',
+    weak: 'Weak',
+    medium: 'Medium',
+    strong: 'Strong',
+    strength: 'Strength',
+  },
+  sq: {
+    badge: 'Vendos Fjalëkalim të Ri',
+    title: 'Përfundo rikthimin me një ekran më të pastër.',
+    description: 'Hapi i reset përdor të njëjtin layout të përqendruar dhe mbështetje dygjuhëshe si pjesa tjetër e auth flow.',
+    password: 'Fjalëkalimi i ri',
+    confirmPassword: 'Konfirmo fjalëkalimin',
+    passwordPlaceholder: 'Shkruaj fjalëkalimin e ri',
+    confirmPlaceholder: 'Përsërite fjalëkalimin',
+    invalidPassword: 'Fjalëkalimi duhet të ketë të paktën 6 karaktere.',
+    mismatch: 'Fjalëkalimet nuk përputhen.',
+    submit: 'Ruaj fjalëkalimin e ri',
+    loading: 'Duke ruajtur...',
+    success: 'Fjalëkalimi u përditësua me sukses.',
+    back: 'Kthehu te hyrja',
+    weak: 'E dobët',
+    medium: 'Mesatare',
+    strong: 'E fortë',
+    strength: 'Forca',
+  },
+} as const
 
 export default function ResetPassword() {
+  const { locale, setLocale } = useAuthLocale()
+  const t = copy[locale]
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -17,7 +62,6 @@ export default function ResetPassword() {
   const { updatePassword } = useAuth()
   const router = useRouter()
 
-  // Calculate password strength
   const strength = useMemo(() => {
     let score = 0
     if (password.length > 5) score += 1
@@ -28,173 +72,159 @@ export default function ResetPassword() {
     return score
   }, [password])
 
-  const strengthColor = 
-    strength === 0 ? 'bg-zinc-800' :
-    strength === 1 ? 'bg-red-500' :
-    strength === 2 ? 'bg-orange-500' :
-    strength === 3 ? 'bg-yellow-500' :
-    strength === 4 ? 'bg-emerald-400' : 'bg-emerald-500'
+  const strengthLabel = strength <= 1 ? t.weak : strength <= 3 ? t.medium : t.strong
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setError('')
     setSuccess('')
 
     if (password.length < 6) {
-      setError('Fjalëkalimi duhet të ketë të paktën 6 karaktere.')
+      setError(t.invalidPassword)
       return
     }
+
     if (password !== confirmPassword) {
-      setError('Fjalëkalimet nuk përputhen.')
+      setError(t.mismatch)
       return
     }
 
     setLoading(true)
-
     const { error: updateError } = await updatePassword(password)
 
     if (updateError) {
-      setError(updateError.message || 'Ndodhi një gabim gjatë përditësimit të fjalëkalimit. Ndoshta linku ka skaduar.')
+      setError(updateError.message)
       setLoading(false)
-    } else {
-      setSuccess('Fjalëkalimi u ndryshua me sukses!')
-      setLoading(false)
-      setTimeout(() => router.push('/login?message=Fjalëkalimi u përditësua. Tani mund të kyçeni.'), 2000)
+      return
     }
+
+    setSuccess(t.success)
+    setLoading(false)
+    setTimeout(() => router.push('/login?message=password-updated'), 1500)
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 p-6 relative overflow-hidden flex items-center justify-center">
-      {/* Premium Background Effects */}
-      <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[128px] pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-emerald-600/10 rounded-full blur-[128px] pointer-events-none" />
-      
-      <div className="w-full max-w-[420px] bg-white/5 backdrop-blur-2xl border border-white/10 p-8 rounded-[2rem] shadow-2xl relative z-10 transition-all duration-500">
-        
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Krijo fjalëkalim të ri</h1>
-          <p className="text-zinc-400 mt-2 text-sm font-medium">Shkruani fjalëkalimin e ri për llogarinë tuaj.</p>
-        </div>
-
-        {/* Messages */}
-        <div className="space-y-3 mb-6">
-          {success ? (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl flex items-center gap-3 text-sm animate-in fade-in">
-              <CheckCircle2 className="w-5 h-5 shrink-0" />
-              <p>{success}</p>
-            </div>
-          ) : (
-            <>
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl flex items-start gap-3 text-sm animate-in fade-in">
-                  <AlertCircle className="w-5 h-5 shrink-0" />
-                  <p>{error}</p>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* New Password Input */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Fjalëkalimi i Ri</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-purple-400 transition-colors">
-                      <Lock className="w-5 h-5" />
-                    </div>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Min. 6 karaktere"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-3.5 pl-11 pr-12 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-zinc-500 hover:text-white transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  
-                  {/* Password Strength Indicator */}
-                  {password.length > 0 && (
-                    <div className="mt-2 flex gap-1 h-1.5 w-full animate-in fade-in">
-                      {[1, 2, 3, 4, 5].map((level) => (
-                        <div 
-                          key={level} 
-                          className={`h-full flex-1 rounded-full transition-all duration-300 ${
-                            strength >= level ? strengthColor : 'bg-zinc-800'
-                          }`} 
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Confirm Password Input */}
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Konfirmo Fjalëkalimin</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-purple-400 transition-colors">
-                      <Lock className="w-5 h-5" />
-                    </div>
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="Përsërit fjalëkalimin"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className={`w-full bg-zinc-900/50 border rounded-xl py-3.5 pl-11 pr-12 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 transition-all text-sm
-                        ${confirmPassword.length > 0 && password !== confirmPassword 
-                          ? 'border-red-500/50 focus:ring-red-500/50 focus:border-red-500/50' 
-                          : 'border-white/5 focus:ring-purple-500/50 focus:border-purple-500/50'
-                        }`}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-zinc-500 hover:text-white transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={loading || (confirmPassword.length > 0 && password !== confirmPassword) || strength === 0}
-                  className="w-full group relative flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 text-white py-4 rounded-xl font-semibold shadow-[0_0_40px_-10px_rgba(147,51,234,0.5)] hover:shadow-[0_0_60px_-15px_rgba(147,51,234,0.7)] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4 overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
-                  <span className="relative flex items-center gap-2">
-                    {loading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Duke ruajtur...
-                      </>
-                    ) : (
-                      <>
-                        Ruaj Fjalëkalimin
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </span>
-                </button>
-              </form>
-            </>
-          )}
-
-          <div className="mt-6 text-center">
-            <Link href="/login" className="text-zinc-500 hover:text-white text-sm transition-colors border-b border-transparent hover:border-white pb-0.5">
-              Kthehu tek Kyçja
-            </Link>
+    <AuthShell
+      locale={locale}
+      onLocaleChange={setLocale}
+      badge={t.badge}
+      title={t.title}
+      description={t.description}
+      footer={
+        <Link href="/login" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent)] transition hover:opacity-80">
+          <ArrowLeft className="h-4 w-4" />
+          {t.back}
+        </Link>
+      }
+    >
+      <div className="space-y-4">
+        {success && (
+          <div className="surface-muted flex items-start gap-3 border-emerald-200/70 bg-emerald-50/80 p-4 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+            <p className="text-sm leading-6">{success}</p>
           </div>
-        </div>
+        )}
+
+        {error && (
+          <div className="surface-muted flex items-start gap-3 border-rose-200/70 bg-rose-50/80 p-4 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+            <p className="text-sm leading-6">{error}</p>
+          </div>
+        )}
       </div>
-    </div>
+
+      {!success && (
+        <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              {t.password}
+            </label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder={t.passwordPlaceholder}
+                className="field-input pl-14 pr-14"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-900 dark:hover:text-white"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+
+            {password.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <span
+                      key={level}
+                      className={`h-2 flex-1 rounded-full ${
+                        strength >= level
+                          ? 'bg-gradient-to-r from-[var(--accent)] to-emerald-400'
+                          : 'bg-slate-200 dark:bg-slate-800'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {t.strength}:{' '}
+                  <span className="font-medium text-slate-700 dark:text-slate-200">{strengthLabel}</span>
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              {t.confirmPassword}
+            </label>
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder={t.confirmPlaceholder}
+                className="field-input pl-14 pr-14"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((current) => !current)}
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-900 dark:hover:text-white"
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || !password || password !== confirmPassword}
+            className="primary-button w-full justify-center py-3.5 text-sm"
+          >
+            {loading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                {t.loading}
+              </>
+            ) : (
+              <>
+                {t.submit}
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </button>
+        </form>
+      )}
+    </AuthShell>
   )
 }
