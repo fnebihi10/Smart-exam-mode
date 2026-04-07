@@ -1,231 +1,288 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Circle,
+  Clock3,
+  Plus,
+  Sparkles,
+  Trash2,
+} from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
-import { ArrowLeft, Plus, CheckCircle2, Circle, Clock, Trash2 } from 'lucide-react'
-import Link from 'next/link'
+import { useAppLocale } from '@/components/i18n/useAppLocale'
 
 interface Task {
-    id: string
-    title: string
-    status: string
-    created_at: string
+  id: string
+  title: string
+  status: string
+  created_at: string
+}
+
+const copy = {
+  en: {
+    back: 'Back to dashboard',
+    title: 'Your study tasks',
+    description: 'This screen follows the same visual system and keeps the workflow focused on one thing: action.',
+    total: 'Total',
+    clearer: 'Clearer task flow',
+    clearerBody: 'The list is easier to scan, and the actions are more obvious.',
+    newTitle: 'Add a new task',
+    newBody: 'Keep it short and specific, for example: Review chapter 3.',
+    placeholder: 'Write your next task...',
+    saving: 'Saving...',
+    add: 'Add task',
+    listTitle: 'Task list',
+    listSubtitle: 'Updated directly from Supabase.',
+    emptyTitle: 'No tasks yet',
+    emptyBody: 'Add a small task and use this page as your operational list.',
+    delete: 'Delete',
+    deleteConfirm: 'Do you want to delete this task?',
+    loadError: 'Failed to load tasks.',
+    addError: 'There was a problem while adding the task.',
+  },
+  sq: {
+    back: 'Kthehu te dashboard',
+    title: 'Detyrat e tua te studimit',
+    description: 'Kjo faqe ndjek te njejtin sistem vizual dhe e mban rrjedhen e punes te fokusuar te veprimi.',
+    total: 'Totali',
+    clearer: 'Rrjedhe me e qarte',
+    clearerBody: 'Lista lexohet me lehte dhe veprimet duken me qarte.',
+    newTitle: 'Shto nje detyre te re',
+    newBody: 'Mbaje te shkurter dhe te qarte, per shembull: Perserit kapitullin 3.',
+    placeholder: 'Shkruaj detyren e radhes...',
+    saving: 'Po ruhet...',
+    add: 'Shto detyre',
+    listTitle: 'Lista e detyrave',
+    listSubtitle: 'Perditesuar direkt nga Supabase.',
+    emptyTitle: 'Nuk ka detyra ende',
+    emptyBody: 'Shto nje detyre te vogel dhe perdore kete faqe si listen tende operative.',
+    delete: 'Fshi',
+    deleteConfirm: 'Deshiron ta fshish kete detyre?',
+    loadError: 'Gabim gjate ngarkimit te detyrave.',
+    addError: 'Ndodhi nje problem gjate shtimit te detyres.',
+  },
+} as const
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return fallback
 }
 
 export default function TasksPage() {
-    const { user } = useAuth()
-    const supabase = createClient()
-    const [tasks, setTasks] = useState<Task[]>([])
-    const [newTaskTitle, setNewTaskTitle] = useState('')
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
-    const [submitting, setSubmitting] = useState(false)
+  const { user } = useAuth()
+  const { locale } = useAppLocale()
+  const t = useMemo(() => copy[locale], [locale])
+  const supabase = createClient()
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-    useEffect(() => {
-        if (user) {
-            fetchTasks()
-        }
-    }, [user])
+  const fetchTasks = useCallback(async () => {
+    setLoading(true)
+    setError('')
 
-    const fetchTasks = async () => {
-        setLoading(true)
-        setError('')
-        try {
-            const { data, error } = await supabase
-                .from('tasks')
-                .select('*')
-                .order('created_at', { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-            if (error) throw new Error(error.message)
-            setTasks(data || [])
-        } catch (err: any) {
-            console.error('Error fetching tasks:', err.message || err)
-            setError(err.message || 'Gabim gjatë ngarkimit të detyrave.')
-        } finally {
-            setLoading(false)
-        }
+      if (error) throw new Error(error.message)
+      setTasks(data || [])
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t.loadError))
+    } finally {
+      setLoading(false)
     }
+  }, [supabase, t.loadError])
 
-    const handleAddTask = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!newTaskTitle.trim() || !user) return
-
-        setSubmitting(true)
-        setError('')
-        try {
-            const { data, error } = await supabase
-                .from('tasks')
-                .insert([{ title: newTaskTitle.trim(), user_id: user.id }])
-                .select()
-                .single()
-
-            if (error) throw new Error(error.message)
-
-            setTasks([data, ...tasks])
-            setNewTaskTitle('')
-        } catch (err: any) {
-            console.error('Error adding task:', err.message || err)
-            setError(err.message || 'Ndodhi një problem gjatë shtimit të detyrës.')
-        } finally {
-            setSubmitting(false)
-        }
+  useEffect(() => {
+    if (user) {
+      void fetchTasks()
     }
+  }, [fetchTasks, user])
 
-    const toggleTaskStatus = async (task: Task) => {
-        const newStatus = task.status === 'completed' ? 'pending' : 'completed'
-        
-        try {
-            // Optimistic UI update
-            setTasks(tasks.map(t => t.id === task.id ? { ...t, status: newStatus } : t))
-            
-            const { error } = await supabase
-                .from('tasks')
-                .update({ status: newStatus })
-                .eq('id', task.id)
+  const handleAddTask = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!newTaskTitle.trim() || !user) return
 
-            if (error) {
-                // Revert if error
-                setTasks(tasks)
-                throw new Error(error.message)
-            }
-        } catch (err: any) {
-            console.error('Error updating task status:', err.message || err)
-            fetchTasks() // Refetch to be sure
-        }
+    setSubmitting(true)
+    setError('')
+
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert([{ title: newTaskTitle.trim(), user_id: user.id }])
+        .select()
+        .single()
+
+      if (error) throw new Error(error.message)
+
+      setTasks((current) => [data, ...current])
+      setNewTaskTitle('')
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t.addError))
+    } finally {
+      setSubmitting(false)
     }
+  }
 
-    const deleteTask = async (taskId: string) => {
-        if (!confirm('Jeni i sigurt që doni ta fshini këtë detyrë?')) return
+  const toggleTaskStatus = async (task: Task) => {
+    const nextStatus = task.status === 'completed' ? 'pending' : 'completed'
+    const previousTasks = tasks
 
-        try {
-            setTasks(tasks.filter(t => t.id !== taskId))
-            
-            const { error } = await supabase
-                .from('tasks')
-                .delete()
-                .eq('id', taskId)
-
-            if (error) throw new Error(error.message)
-        } catch (err: any) {
-            console.error('Error deleting task:', err.message || err)
-            fetchTasks()
-        }
+    try {
+      setTasks((current) => current.map((entry) => (entry.id === task.id ? { ...entry, status: nextStatus } : entry)))
+      const { error } = await supabase.from('tasks').update({ status: nextStatus }).eq('id', task.id)
+      if (error) throw new Error(error.message)
+    } catch {
+      setTasks(previousTasks)
     }
+  }
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600"></div>
+  const deleteTask = async (taskId: string) => {
+    if (!window.confirm(t.deleteConfirm)) return
+
+    try {
+      setTasks((current) => current.filter((task) => task.id !== taskId))
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+      if (error) throw new Error(error.message)
+    } catch {
+      void fetchTasks()
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-5 pb-4">
+      <section className="surface animate-fade-in-up p-6 sm:p-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <Link href="/dashboard" className="secondary-button px-4 py-2">
+              <ArrowLeft className="h-4 w-4" />
+              {t.back}
+            </Link>
+            <h1 className="page-title mt-5 text-3xl md:text-4xl">{t.title}</h1>
+            <p className="page-copy mt-4">{t.description}</p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="surface-muted p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                {t.total}
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{tasks.length}</p>
             </div>
-        )
-    }
-
-    return (
-        <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6">
-            <div className="max-w-3xl mx-auto space-y-6">
-                
-                {/* Header */}
-                <div className="flex items-center gap-4">
-                    <Link 
-                        href="/dashboard" 
-                        className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                    >
-                        <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                    </Link>
-                    <div>
-                        <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Menaxhimi i Detyrave</h1>
-                        <p className="text-sm text-zinc-500">Kjo faqe ruan dhe lexon të dhënat drejtpërdrejt nga Supabase.</p>
-                    </div>
-                </div>
-
-                {/* Error Banner */}
-                {error && (
-                    <div className="p-4 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm">
-                        {error}
-                    </div>
-                )}
-
-                {/* CREATE Form */}
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm shadow-blue-900/5">
-                    <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-4">Shto Detyrë të Re</h2>
-                    <form onSubmit={handleAddTask} className="flex gap-3">
-                        <input
-                            type="text"
-                            value={newTaskTitle}
-                            onChange={(e) => setNewTaskTitle(e.target.value)}
-                            placeholder="Shkruaj një detyrë të re..."
-                            disabled={submitting}
-                            className="flex-1 px-4 py-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-zinc-900 dark:text-white"
-                        />
-                        <button
-                            type="submit"
-                            disabled={submitting || !newTaskTitle.trim()}
-                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
-                        >
-                            {submitting ? (
-                                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-                            ) : (
-                                <>
-                                    <Plus className="w-5 h-5" />
-                                    <span className="hidden sm:inline">Shto</span>
-                                </>
-                            )}
-                        </button>
-                    </form>
-                </div>
-
-                {/* READ List */}
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 flex justify-between items-center">
-                        <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Lista e Detyrave ({tasks.length})</h2>
-                        <div className="text-xs text-zinc-400 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Përditësuar direkt nga Supabase
-                        </div>
-                    </div>
-                    
-                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                        {tasks.length === 0 ? (
-                            <div className="p-10 text-center text-zinc-500">
-                                Nuk keni asnjë detyrë të ruajtur.
-                            </div>
-                        ) : (
-                            tasks.map(task => (
-                                <div key={task.id} className={`p-4 flex items-center justify-between gap-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${task.status === 'completed' ? 'opacity-60' : ''}`}>
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <button 
-                                            onClick={() => toggleTaskStatus(task)}
-                                            className="text-zinc-400 hover:text-blue-500 transition-colors"
-                                        >
-                                            {task.status === 'completed' ? (
-                                                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                                            ) : (
-                                                <Circle className="w-6 h-6" />
-                                            )}
-                                        </button>
-                                        <div className="min-w-0">
-                                            <h3 className={`font-medium truncate ${task.status === 'completed' ? 'line-through text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>
-                                                {task.title}
-                                            </h3>
-                                            <p className="text-xs text-zinc-400 mt-0.5">
-                                                {new Date(task.created_at).toLocaleString('sq-AL', { dateStyle: 'medium', timeStyle: 'short' })}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => deleteTask(task.id)}
-                                        className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                        title="Fshi detyrën"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-
+            <div className="surface-muted p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                <Sparkles className="h-4 w-4 text-[var(--accent)]" />
+                {t.clearer}
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.clearerBody}</p>
             </div>
-        </main>
-    )
+          </div>
+        </div>
+      </section>
+
+      {error && (
+        <div className="surface-muted border-rose-200/70 bg-rose-50/80 p-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300">
+          {error}
+        </div>
+      )}
+
+      <section className="surface animate-fade-in-up p-6 sm:p-7">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t.newTitle}</h2>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.newBody}</p>
+
+        <form onSubmit={handleAddTask} className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <input
+            type="text"
+            value={newTaskTitle}
+            onChange={(event) => setNewTaskTitle(event.target.value)}
+            placeholder={t.placeholder}
+            disabled={submitting}
+            className="field-input flex-1 px-4"
+          />
+          <button type="submit" disabled={submitting || !newTaskTitle.trim()} className="primary-button justify-center">
+            {submitting ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                {t.saving}
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" />
+                {t.add}
+              </>
+            )}
+          </button>
+        </form>
+      </section>
+
+      <section className="surface animate-fade-in-up overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-5">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t.listTitle}</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.listSubtitle}</p>
+          </div>
+          <span className="status-pill">
+            <Clock3 className="h-3.5 w-3.5" />
+            {tasks.length}
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="flex min-h-[20rem] items-center justify-center p-6">
+            <span className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-[var(--accent)]" />
+          </div>
+        ) : tasks.length === 0 ? (
+          <div className="p-10 text-center">
+            <p className="text-lg font-semibold text-slate-900 dark:text-white">{t.emptyTitle}</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.emptyBody}</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[var(--border)]">
+            {tasks.map((task) => {
+              const completed = task.status === 'completed'
+
+              return (
+                <article key={task.id} className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-start gap-4">
+                    <button type="button" onClick={() => toggleTaskStatus(task)} className="mt-1 text-[var(--accent)]">
+                      {completed ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                    </button>
+                    <div className="min-w-0">
+                      <h3 className={`text-sm font-medium ${completed ? 'text-slate-500 line-through dark:text-slate-400' : 'text-slate-900 dark:text-white'}`}>
+                        {task.title}
+                      </h3>
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        {new Date(task.created_at).toLocaleString(locale === 'en' ? 'en-US' : 'sq-AL', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => deleteTask(task.id)}
+                    className="secondary-button self-start px-4 py-2 text-rose-600 dark:text-rose-300 sm:self-center"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t.delete}
+                  </button>
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  )
 }
