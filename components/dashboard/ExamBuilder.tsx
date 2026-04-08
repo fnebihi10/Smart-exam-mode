@@ -131,6 +131,14 @@ const copy = {
     sourceReady: 'Lecture context connected',
     sourceFallback: 'Topic-only generation',
     descriptionLabel: 'Description',
+    sessionExpired: 'Your session expired. Please sign in again.',
+    titleRequired: 'Please add an exam title before generating.',
+    titleTooLong: 'The exam title is too long. Keep it under 120 characters.',
+    topicTooLong: 'Topic focus is too long. Keep it under 1200 characters.',
+    requestFailed: 'Generation failed due to a network or server error. Please try again.',
+    tooManyQuestions: 'Keep the generated exam at 30 questions or fewer.',
+    tryAgain: 'Try again',
+    signIn: 'Sign in',
   },
   sq: {
     back: 'Kthehu te dashboard',
@@ -224,8 +232,19 @@ const copy = {
     sourceReady: 'Konteksti i leksioneve i lidhur',
     sourceFallback: 'Gjenerim vetem nga tema',
     descriptionLabel: 'Pershkrimi',
+    sessionExpired: 'Sesioni ka skaduar. Ju lutem kyquni perseri.',
+    titleRequired: 'Ju lutem vendosni nje titull provimi para gjenerimit.',
+    titleTooLong: 'Titulli i provimit eshte shume i gjate. Mbajeni nen 120 karaktere.',
+    topicTooLong: 'Fokusi i temes eshte shume i gjate. Mbajeni nen 1200 karaktere.',
+    requestFailed: 'Deshtoi per shkak te rrjetit ose serverit. Ju lutem provoni perseri.',
+    tooManyQuestions: 'Mbajeni provimin me 30 pyetje ose me pak.',
+    tryAgain: 'Provo perseri',
+    signIn: 'Kycu',
   },
 } as const
+
+const MAX_EXAM_TITLE_CHARS = 120
+const MAX_TOPIC_FOCUS_CHARS = 1200
 
 const createInitialConfig = (locale: 'en' | 'sq'): ExamGenerationRequest => ({
   title:
@@ -289,10 +308,29 @@ const createManualQuestion = (
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error && error.message) {
-    return error.message
+    const message = error.message.trim()
+    if (!message) return fallback
+
+    // Fetch failures typically surface as TypeError with a generic message.
+    if (message.toLowerCase().includes('failed to fetch')) {
+      return fallback
+    }
+
+    return message
   }
 
   return fallback
+}
+
+const isAuthExpiredError = (message: string) => {
+  const normalized = message.toLowerCase()
+  return (
+    normalized.includes('jwt expired') ||
+    normalized.includes('invalid jwt') ||
+    normalized.includes('not authorized') ||
+    normalized.includes('unauthorized') ||
+    normalized.includes('auth session missing')
+  )
 }
 
 const isMissingExamsTableError = (message: string) => {
@@ -315,7 +353,7 @@ const recalculateDraft = (exam: GeneratedExam): GeneratedExam => ({
 const difficultyOptions: ExamDifficulty[] = ['mixed', 'easy', 'medium', 'hard']
 
 export default function ExamBuilder() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const { locale } = useAppLocale()
   const t = useMemo(() => copy[locale], [locale])
   const supabase = createClient()
@@ -333,6 +371,32 @@ export default function ExamBuilder() {
   const [success, setSuccess] = useState('')
   const [contextAvailable, setContextAvailable] = useState(true)
   const [requiresExamTableSetup, setRequiresExamTableSetup] = useState(false)
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <section className="surface p-7 sm:p-9">
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
+            {t.sessionExpired}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400">
+            {t.setupHint}
+          </p>
+          <Link href="/login" className="primary-button mt-6 inline-flex justify-center">
+            {t.signIn}
+          </Link>
+        </section>
+      </div>
+    )
+  }
 
   useEffect(() => {
     setConfig((current) => ({ ...current, language: locale }))
@@ -491,11 +555,47 @@ export default function ExamBuilder() {
     })
   }
 
+  const safeReadJson = async (response: Response) => {
+    try {
+      return (await response.json()) as unknown
+    } catch {
+      return null
+    }
+  }
+
   const handleGenerate = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (generating) return
     setGenerating(true)
     setError('')
     setSuccess('')
+
+    const title = config.title.trim()
+    const topicFocus = config.topicFocus.trim()
+
+    if (!title) {
+      setGenerating(false)
+      setError(t.titleRequired)
+      return
+    }
+
+    if (title.length > MAX_EXAM_TITLE_CHARS) {
+      setGenerating(false)
+      setError(t.titleTooLong)
+      return
+    }
+
+    if (topicFocus.length > MAX_TOPIC_FOCUS_CHARS) {
+      setGenerating(false)
+      setError(t.topicTooLong)
+      return
+    }
+
+    if (totalQuestions > 30) {
+      setGenerating(false)
+      setError(t.tooManyQuestions)
+      return
+    }
 
     if (!config.selectedLectureIds.length && !config.topicFocus.trim()) {
       setGenerating(false)
@@ -510,24 +610,33 @@ export default function ExamBuilder() {
         body: JSON.stringify(config),
       })
 
-      const data = await response.json()
+      const data = (await safeReadJson(response)) as { error?: string; exam?: GeneratedExam; contextAvailable?: boolean } | null
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error(t.sessionExpired)
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Exam generation failed.')
+        throw new Error(data?.error || t.requestFailed)
+      }
+
+      if (!data?.exam) {
+        throw new Error(t.requestFailed)
       }
 
       setDraft(data.exam as GeneratedExam)
       setContextAvailable(Boolean(data.contextAvailable))
       setSuccess(Boolean(data.contextAvailable) ? t.draftReady : t.noContext)
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Exam generation failed.'))
+      setError(getErrorMessage(err, t.requestFailed))
     } finally {
       setGenerating(false)
     }
   }
 
   const handlePublish = async () => {
-    if (!draft || !user) return
+    if (!draft) return
+    if (publishing) return
 
     setPublishing(true)
     setError('')
@@ -566,6 +675,11 @@ export default function ExamBuilder() {
       setSuccess(t.publishSuccess)
     } catch (err: unknown) {
       const message = getErrorMessage(err, t.publishError)
+
+      if (isAuthExpiredError(message)) {
+        setError(t.sessionExpired)
+        return
+      }
 
       if (isMissingExamsTableError(message)) {
         setRequiresExamTableSetup(true)
@@ -681,7 +795,11 @@ export default function ExamBuilder() {
                   setConfig((current) => ({ ...current, title: event.target.value }))
                 }
                 className="field-input px-4"
+                maxLength={MAX_EXAM_TITLE_CHARS}
               />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {config.title.length}/{MAX_EXAM_TITLE_CHARS}
+              </p>
             </label>
 
             <label className="space-y-2">
@@ -698,7 +816,11 @@ export default function ExamBuilder() {
                 }
                 className="field-input min-h-28 resize-none px-4"
                 placeholder={t.topicPlaceholder}
+                maxLength={MAX_TOPIC_FOCUS_CHARS}
               />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {config.topicFocus.length}/{MAX_TOPIC_FOCUS_CHARS}
+              </p>
             </label>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -951,7 +1073,7 @@ export default function ExamBuilder() {
             </p>
             <button
               type="submit"
-              disabled={generating || totalQuestions < 1}
+              disabled={generating || totalQuestions < 1 || totalQuestions > 30}
               className="primary-button justify-center"
             >
               {generating ? (

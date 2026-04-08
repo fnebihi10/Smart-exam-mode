@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { getLectureContext } from '@/utils/fileParsing'
+import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
 import {
   type ExamGenerationRequest,
   type ExamQuestion,
@@ -25,6 +26,9 @@ const questionTypeOrder: ExamQuestionType[] = [
   'fill_in_blank',
   'open_ended',
 ]
+
+const MAX_TITLE_CHARS = 120
+const MAX_TOPIC_FOCUS_CHARS = 1200
 
 class ExamShapeError extends Error {
   missingCounts: Partial<Record<ExamQuestionType, number>>
@@ -420,11 +424,69 @@ const generateExam = async (
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as Partial<ExamGenerationRequest>
+    if (!process.env.OPENROUTER_API_KEY) {
+      return NextResponse.json(
+        { error: 'Server is missing OPENROUTER_API_KEY. Please configure it in Vercel.' },
+        { status: 500 }
+      )
+    }
+
+    let body: Partial<ExamGenerationRequest> = {}
+
+    try {
+      body = (await request.json()) as Partial<ExamGenerationRequest>
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 })
+    }
+
     const categories = Array.isArray(body.categories) ? body.categories : []
+    const topicFocus = typeof body.topicFocus === 'string' ? body.topicFocus.trim() : ''
+    const selectedLectureIds = Array.isArray(body.selectedLectureIds)
+      ? body.selectedLectureIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      : []
+
+    if (!topicFocus && selectedLectureIds.length === 0) {
+      return NextResponse.json(
+        { error: 'Select at least one lecture or write a topic focus before generating the exam.' },
+        { status: 400 }
+      )
+    }
+
+    const titleCandidate = typeof body.title === 'string' ? body.title.trim() : ''
+
+    if (titleCandidate.length > MAX_TITLE_CHARS) {
+      return NextResponse.json(
+        { error: `Exam title is too long. Keep it under ${MAX_TITLE_CHARS} characters.` },
+        { status: 400 }
+      )
+    }
+
+    if (topicFocus.length > MAX_TOPIC_FOCUS_CHARS) {
+      return NextResponse.json(
+        { error: `Topic focus is too long. Keep it under ${MAX_TOPIC_FOCUS_CHARS} characters.` },
+        { status: 400 }
+      )
+    }
+
+    if (selectedLectureIds.length > 25) {
+      return NextResponse.json(
+        { error: 'Too many lectures selected. Please choose fewer sources.' },
+        { status: 400 }
+      )
+    }
+
+    if (selectedLectureIds.length > 0) {
+      const supabase = await createSupabaseServerClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized. Please sign in again.' }, { status: 401 })
+      }
+    }
+
     const normalizedRequest: ExamGenerationRequest = {
       title: cleanText(body.title, 'AI Exam Draft'),
-      topicFocus: typeof body.topicFocus === 'string' ? body.topicFocus.trim() : '',
+      topicFocus,
       difficulty:
         body.difficulty === 'easy' ||
         body.difficulty === 'medium' ||
@@ -434,9 +496,7 @@ export async function POST(request: NextRequest) {
           : 'mixed',
       language: body.language === 'sq' ? 'sq' : 'en',
       estimatedDurationMinutes: clamp(Number(body.estimatedDurationMinutes) || 60, 10, 240),
-      selectedLectureIds: Array.isArray(body.selectedLectureIds)
-        ? body.selectedLectureIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-        : [],
+      selectedLectureIds,
       categories: categories
         .map((category) => ({
           type: questionTypeOrder.includes(category.type as ExamQuestionType)
@@ -467,7 +527,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const lectureContext = await getLectureContext(normalizedRequest.selectedLectureIds)
+    const lectureContext = normalizedRequest.selectedLectureIds.length
+      ? await getLectureContext(normalizedRequest.selectedLectureIds)
+      : ''
 
     const exam = await generateExam(normalizedRequest, lectureContext)
 
@@ -482,6 +544,12 @@ export async function POST(request: NextRequest) {
       error instanceof Error && error.message
         ? error.message
         : 'Failed to generate the exam draft.'
+
+    const normalized = message.toLowerCase()
+
+    if (normalized.includes('timeout') || normalized.includes('overloaded') || normalized.includes('rate limit')) {
+      return NextResponse.json({ error: message }, { status: 502 })
+    }
 
     return NextResponse.json({ error: message }, { status: 500 })
   }

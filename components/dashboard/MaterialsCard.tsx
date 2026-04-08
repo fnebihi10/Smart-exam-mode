@@ -54,6 +54,9 @@ const copy = {
     emptyBody: 'Upload a lecture and this area becomes your main study library.',
     delete: 'Delete',
     view: 'View',
+    sessionExpired: 'Your session expired. Please sign in again.',
+    noFile: 'No file selected.',
+    uploadInProgress: 'Upload already in progress.',
   },
   sq: {
     badge: 'Biblioteka e leksioneve',
@@ -81,6 +84,9 @@ const copy = {
     emptyBody: 'Ngarko nje leksion dhe kjo zone do te kthehet ne biblioteken tende kryesore te pergatitjes.',
     delete: 'Fshi',
     view: 'Shiko',
+    sessionExpired: 'Sesioni ka skaduar. Ju lutem kyquni perseri.',
+    noFile: 'Nuk u zgjodh asnje skedar.',
+    uploadInProgress: 'Ngarkimi eshte duke u kryer.',
   },
 } as const
 
@@ -128,8 +134,21 @@ export default function MaterialsCard() {
   }, [fetchFiles, user])
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (uploading) {
+      setError(t.uploadInProgress)
+      return
+    }
+
     const file = event.target.files?.[0]
-    if (!file || !user) return
+    if (!file) {
+      setError(t.noFile)
+      return
+    }
+
+    if (!user) {
+      setError(t.sessionExpired)
+      return
+    }
 
     const allowedTypes = [
       'application/pdf',
@@ -228,14 +247,14 @@ export default function MaterialsCard() {
             <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.description}</p>
           </div>
 
-          <label className="primary-button cursor-pointer">
+          <label className={`primary-button cursor-pointer ${!user ? 'pointer-events-none opacity-60' : ''}`}>
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             {uploading ? t.uploading : t.upload}
             <input
               type="file"
               className="hidden"
               onChange={handleUpload}
-              disabled={uploading}
+              disabled={uploading || !user}
               accept=".pdf,.docx,.txt"
             />
           </label>
