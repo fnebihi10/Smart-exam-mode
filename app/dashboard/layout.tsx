@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { BookOpen, GraduationCap, LayoutDashboard, ListTodo } from 'lucide-react'
+import { BookOpen, FileCheck2, GraduationCap, LayoutDashboard } from 'lucide-react'
 import Sidebar from '@/components/dashboard/Sidebar'
 import ThemeToggle from '@/components/ThemeToggle'
 import LanguageToggle from '@/components/i18n/LanguageToggle'
@@ -12,13 +12,13 @@ const copy = {
     subtitle: 'Workspace',
     summary: 'Overview',
     lectures: 'Lectures',
-    tasks: 'Tasks',
+    exams: 'Exams',
   },
   sq: {
     subtitle: 'Panel pune',
     summary: 'Permbledhje',
     lectures: 'Leksionet',
-    tasks: 'Detyrat',
+    exams: 'Provimet',
   },
 } as const
 
@@ -33,7 +33,7 @@ export default function DashboardLayout({
   const mobileLinks = [
     { href: '/dashboard', label: t.summary, icon: LayoutDashboard },
     { href: '/dashboard/lectures', label: t.lectures, icon: BookOpen },
-    { href: '/dashboard/tasks', label: t.tasks, icon: ListTodo },
+    { href: '/dashboard/exams', label: t.exams, icon: FileCheck2 },
   ]
 
   return (

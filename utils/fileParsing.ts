@@ -3,12 +3,13 @@ import pdf from 'pdf-parse'
 import { createClient } from './supabase/server'
 
 type StoredLectureFile = {
+  id: string
   file_type: string
   name: string
   storage_path: string
 }
 
-export async function getLectureContext() {
+export async function getLectureContext(selectedLectureIds?: string[]) {
   try {
     const supabase = await createClient()
     const {
@@ -21,10 +22,16 @@ export async function getLectureContext() {
       return ''
     }
 
-    const { data: files, error: dbError } = await supabase
+    let query = supabase
       .from('lecture_files')
-      .select('name, storage_path, file_type')
+      .select('id, name, storage_path, file_type')
       .eq('user_id', user.id)
+
+    if (selectedLectureIds?.length) {
+      query = query.in('id', selectedLectureIds)
+    }
+
+    const { data: files, error: dbError } = await query
 
     if (dbError || !files?.length) {
       if (dbError) {

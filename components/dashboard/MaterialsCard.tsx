@@ -12,6 +12,7 @@ import {
   Trash2,
   UploadCloud,
   X,
+  Eye,
 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
@@ -52,6 +53,7 @@ const copy = {
     emptyTitle: 'No materials yet',
     emptyBody: 'Upload a lecture and this area becomes your main study library.',
     delete: 'Delete',
+    view: 'View',
   },
   sq: {
     badge: 'Biblioteka e leksioneve',
@@ -78,6 +80,7 @@ const copy = {
     emptyTitle: 'Nuk ka materiale ende',
     emptyBody: 'Ngarko nje leksion dhe kjo zone do te kthehet ne biblioteken tende kryesore te pergatitjes.',
     delete: 'Fshi',
+    view: 'Shiko',
   },
 } as const
 
@@ -189,6 +192,22 @@ export default function MaterialsCard() {
       setSuccess(t.deleteSuccess)
     } catch {
       setError(t.deleteError)
+    }
+  }
+
+  const handleView = async (file: LectureFile) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('lectures')
+        .createSignedUrl(file.storage_path, 60 * 60) // 1 hour expiry
+
+      if (error) throw error
+      
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank')
+      }
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Could not load file preview'))
     }
   }
 
@@ -315,14 +334,24 @@ export default function MaterialsCard() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleDelete(file)}
-                  className="secondary-button px-4 py-2 text-rose-600 dark:text-rose-300"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {t.delete}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleView(file)}
+                    className="secondary-button px-4 py-2 hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  >
+                    <Eye className="h-4 w-4" />
+                    {t.view}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(file)}
+                    className="secondary-button px-4 py-2 text-rose-600 dark:text-rose-300"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t.delete}
+                  </button>
+                </div>
               </article>
             ))
           )}

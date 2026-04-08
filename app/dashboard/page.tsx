@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Bot, FileStack, Sparkles } from 'lucide-react'
+import { ArrowRight, Bot, FileCheck2, FileStack, Sparkles } from 'lucide-react'
 import AIChatCard from '@/components/dashboard/AIChatCard'
 import UserCard from '@/components/dashboard/UserCard'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
@@ -15,12 +15,14 @@ const copy = {
     materialsValue: 'Moved to Lectures',
     assistant: 'Assistant',
     assistantValue: 'Ready for questions',
+    exams: 'Exam builder',
+    examsValue: 'AI draft + preview',
     approach: 'Approach',
     approachValue: 'Less noise, better structure',
     quickTitle: 'What changed',
     quickBody: 'The dashboard is no longer trying to be both a control center and a file library at the same time.',
     lecturesCta: 'Open Lectures',
-    tasksCta: 'Open Tasks',
+    examsCta: 'Open Exams',
   },
   sq: {
     badge: 'Paneli yt akademik',
@@ -30,12 +32,14 @@ const copy = {
     materialsValue: 'Kaluan te Leksionet',
     assistant: 'Asistenti',
     assistantValue: 'Gati per pyetje',
+    exams: 'Krijuesi i provimit',
+    examsValue: 'Draft AI + preview',
     approach: 'Qasja',
     approachValue: 'Me pak zhurme, me shume strukture',
     quickTitle: 'Cfare ndryshoi',
     quickBody: 'Dashboard nuk po perpiqet me te jete edhe panel pune edhe biblioteke skedaresh ne te njejten kohe.',
     lecturesCta: 'Hap Leksionet',
-    tasksCta: 'Hap Detyrat',
+    examsCta: 'Hap Provimet',
   },
 } as const
 
@@ -46,6 +50,7 @@ export default function Dashboard() {
   const quickStats = [
     { title: t.materials, value: t.materialsValue, icon: FileStack },
     { title: t.assistant, value: t.assistantValue, icon: Bot },
+    { title: t.exams, value: t.examsValue, icon: FileCheck2 },
     { title: t.approach, value: t.approachValue, icon: Sparkles },
   ]
 
@@ -59,7 +64,7 @@ export default function Dashboard() {
             <p className="page-copy mt-5">{t.description}</p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 xl:w-[30rem]">
+          <div className="grid gap-3 sm:grid-cols-2 xl:w-[36rem]">
             {quickStats.map(({ title, value, icon: Icon }) => (
               <div key={title} className="surface-muted p-4">
                 <div className="icon-shell h-11 w-11 text-[var(--accent)]">
@@ -83,13 +88,13 @@ export default function Dashboard() {
             <p className="text-lg font-semibold text-slate-900 dark:text-white">{t.quickTitle}</p>
             <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.quickBody}</p>
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link href="/dashboard/lectures" className="primary-button justify-center">
                 {t.lecturesCta}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/dashboard/tasks" className="secondary-button justify-center">
-                {t.tasksCta}
+              <Link href="/dashboard/exams" className="secondary-button justify-center">
+                {t.examsCta}
               </Link>
             </div>
           </section>

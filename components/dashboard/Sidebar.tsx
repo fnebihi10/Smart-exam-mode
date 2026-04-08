@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { BookOpen, GraduationCap, LayoutDashboard, ListTodo, LogOut, Sparkles } from 'lucide-react'
+import { BookOpen, FileCheck2, GraduationCap, LayoutDashboard, LogOut, Sparkles } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import ThemeToggle from '@/components/ThemeToggle'
 import LanguageToggle from '@/components/i18n/LanguageToggle'
@@ -14,22 +14,18 @@ const copy = {
     subtitle: 'Calmer study workspace',
     summary: 'Overview',
     lectures: 'Lectures',
-    tasks: 'Tasks',
+    exams: 'Exams',
     focused: 'Focused workflow',
     focusedBody: 'Navigation keeps only the areas you use often, with less noise and better hierarchy.',
-    status: 'Status',
-    ready: 'Workspace is ready.',
     logout: 'Sign out',
   },
   sq: {
     subtitle: 'Hapesire studimi me e qete',
     summary: 'Permbledhje',
     lectures: 'Leksionet',
-    tasks: 'Detyrat',
+    exams: 'Provimet',
     focused: 'Workflow i fokusuar',
     focusedBody: 'Navigimi mban vetem zonat qe perdoren shpesh, me me pak zhurme dhe me shume qartesi.',
-    status: 'Status',
-    ready: 'Paneli eshte gati.',
     logout: 'Dil',
   },
 } as const
@@ -44,7 +40,7 @@ export default function Sidebar() {
   const links = [
     { name: t.summary, href: '/dashboard', icon: LayoutDashboard },
     { name: t.lectures, href: '/dashboard/lectures', icon: BookOpen },
-    { name: t.tasks, href: '/dashboard/tasks', icon: ListTodo },
+    { name: t.exams, href: '/dashboard/exams', icon: FileCheck2 },
   ]
 
   const handleLogout = async () => {
@@ -53,8 +49,8 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 w-[17.25rem] p-4">
-      <div className="surface flex h-full flex-col p-5">
+    <aside className="custom-scrollbar fixed inset-y-0 left-0 w-[17.25rem] overflow-y-auto p-4">
+      <div className="surface flex min-h-full flex-col p-5">
         <div className="flex items-start justify-between gap-3">
           <Link href="/dashboard" className="flex items-center gap-3">
             <div className="icon-shell h-12 w-12 text-[var(--accent)]">
@@ -109,17 +105,7 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="mt-auto space-y-4">
-          <div className="surface-muted p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-              {t.status}
-            </p>
-            <div className="mt-3 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              {t.ready}
-            </div>
-          </div>
-
+        <div className="mt-auto pt-6">
           <button
             type="button"
             onClick={handleLogout}
