@@ -6,7 +6,6 @@ import {
   ArrowUp,
   Bot,
   Eraser,
-  Loader2,
   Sparkles,
   User as UserIcon,
 } from 'lucide-react'
@@ -122,8 +121,8 @@ export default function AIChatCard() {
   }
 
   return (
-    <section className="surface animate-fade-in-up flex min-h-[42rem] flex-col overflow-hidden">
-      <header className="border-b border-[var(--border)] px-6 py-5 sm:px-7">
+    <section className="surface animate-fadeInScale flex min-h-[42rem] flex-col overflow-hidden">
+      <header className="card-header-divider px-6 py-5 sm:px-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br from-[var(--accent)] to-emerald-400 text-white shadow-[0_22px_34px_-24px_rgba(15,118,110,0.8)]">
@@ -153,7 +152,7 @@ export default function AIChatCard() {
         </div>
       </header>
 
-      <div ref={scrollRef} className="custom-scrollbar flex-1 overflow-y-auto px-6 py-6 sm:px-7">
+      <div ref={scrollRef} className="custom-scrollbar dashboard-scroll-mask flex-1 overflow-y-auto px-6 py-6 sm:px-7">
         {messages.length === 0 && !loading ? (
           <div className="flex h-full flex-col justify-center">
             <div className="mx-auto max-w-2xl text-center">
@@ -183,7 +182,7 @@ export default function AIChatCard() {
               const isUser = message.role === 'user'
 
               return (
-                <div key={`${message.role}-${index}`} className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                <div key={`${message.role}-${index}`} className={`animate-fadeInUp flex gap-3 [animation-fill-mode:both] ${isUser ? 'justify-end' : 'justify-start'}`}>
                   {!isUser && (
                     <div className="icon-shell h-10 w-10 shrink-0 text-[var(--accent)]">
                       <Bot className="h-4 w-4" />
@@ -192,7 +191,12 @@ export default function AIChatCard() {
 
                   <div className={`max-w-[85%] ${isUser ? 'items-end' : 'items-start'} flex flex-col`}>
                     <div
-                      className={`rounded-[24px] px-4 py-3 text-sm leading-7 shadow-[var(--shadow-soft)] ${
+                      style={
+                        isUser
+                          ? { borderRight: '3px solid rgba(var(--color-primary-rgb), 0.55)' }
+                          : { borderLeft: '3px solid rgba(var(--color-muted-accent-rgb), 0.5)' }
+                      }
+                      className={`rounded-[24px] border-y border-transparent px-4 py-3 text-sm leading-7 shadow-depth-sm ${
                         isUser
                           ? 'bg-slate-900 text-white dark:bg-teal-500 dark:text-slate-950'
                           : 'surface-muted text-slate-700 dark:text-slate-200'
@@ -219,11 +223,14 @@ export default function AIChatCard() {
                 <div className="icon-shell h-10 w-10 shrink-0 text-[var(--accent)]">
                   <Bot className="h-4 w-4" />
                 </div>
-                <div className="surface-muted rounded-[24px] px-4 py-4">
+                <div
+                  style={{ borderLeft: '3px solid rgba(var(--color-muted-accent-rgb), 0.5)' }}
+                  className="surface-muted rounded-[24px] px-4 py-4 shadow-depth-sm"
+                >
                   <div className="flex gap-2">
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--accent)] [animation-delay:-0.2s]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--accent)] [animation-delay:-0.1s]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--accent)]" />
+                    <span className="typing-dot h-2 w-2 rounded-full bg-[var(--accent)] [animation-delay:-0.24s]" />
+                    <span className="typing-dot h-2 w-2 rounded-full bg-[var(--accent)] [animation-delay:-0.12s]" />
+                    <span className="typing-dot h-2 w-2 rounded-full bg-[var(--accent)]" />
                   </div>
                 </div>
               </div>
@@ -239,7 +246,7 @@ export default function AIChatCard() {
         )}
       </div>
 
-      <div className="border-t border-[var(--border)] px-6 py-5 sm:px-7">
+      <div className="border-t border-[var(--surface-divider)] px-6 py-5 sm:px-7">
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="relative">
             <textarea
@@ -260,10 +267,10 @@ export default function AIChatCard() {
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="primary-button absolute bottom-4 right-4 h-11 w-11 rounded-2xl px-0"
+              className="primary-button absolute bottom-4 right-4 h-11 w-11 rounded-2xl px-0 hover:scale-[1.03] hover:shadow-glow-primary active:scale-95"
               title={t.sendTitle}
             >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
+              {loading ? <span className="spinner-arc h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
             </button>
           </div>
 

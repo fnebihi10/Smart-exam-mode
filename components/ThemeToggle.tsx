@@ -39,10 +39,16 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      aria-label={mounted && theme === "dark" ? "Kaloni në dritë" : "Kaloni në errësirë"}
-      className="icon-shell h-11 w-11 text-slate-600 transition hover:-translate-y-0.5 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+      aria-label={mounted && theme === "dark" ? "Kaloni ne drite" : "Kaloni ne erresire"}
+      className="icon-shell icon-shell-button h-11 w-11 text-slate-600 transition-transform duration-300 hover:-translate-y-0.5 hover:text-slate-950 active:scale-95 dark:text-slate-300 dark:hover:text-white"
     >
-      {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      <span
+        className={`flex items-center justify-center transition-transform duration-[350ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+          mounted && theme === "dark" ? "rotate-180 scale-110" : "rotate-0 scale-100"
+        }`}
+      >
+        {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </span>
     </button>
   )
 }

@@ -534,7 +534,14 @@ export default function ExamRunner({
   }
 
   if (loading) {
-    return <div className="min-h-screen p-6 text-sm text-slate-600">{t.loading}</div>
+    return (
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+          <span className="spinner-arc h-6 w-6" />
+          {t.loading}
+        </div>
+      </div>
+    )
   }
 
   if (error || !exam || !examRecord) {
@@ -780,18 +787,25 @@ export default function ExamRunner({
 
   const currentQuestion = exam.questions[currentIndex]
   const progress = ((currentIndex + 1) / exam.questions.length) * 100
+  const totalExamSeconds = (exam.estimatedDurationMinutes || 1) * 60
+  const timeRatio = totalExamSeconds > 0 ? timeLeft / totalExamSeconds : 1
+  const timerWarning = timeRatio <= 0.2
+  const timerCritical = timeRatio <= 0.1
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(15,118,110,0.12),transparent_24%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.08),transparent_20%),linear-gradient(180deg,#faf6ef_0%,#efe5d8_100%)] px-4 py-4 text-slate-950 dark:bg-[radial-gradient(circle_at_top_left,rgba(15,118,110,0.14),transparent_24%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.12),transparent_22%),linear-gradient(180deg,#09111b_0%,#0f1824_100%)] dark:text-white">
       <div className="mx-auto max-w-7xl">
-        <div className="sticky top-3 z-30 mb-5 rounded-[26px] border border-rose-200/80 bg-rose-50/90 px-5 py-4 shadow-[0_22px_60px_-42px_rgba(225,29,72,0.28)] backdrop-blur-xl dark:border-rose-400/25 dark:bg-rose-500/12 dark:shadow-[0_20px_60px_-35px_rgba(244,63,94,0.75)]">
+        <div className="animate-slideInRight sticky top-3 z-30 mb-5 rounded-[26px] border border-rose-200/80 bg-rose-50/90 px-5 py-4 shadow-depth-lg backdrop-blur-xl dark:border-rose-400/25 dark:bg-rose-500/12">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-rose-700 dark:text-rose-200">{t.violationWarning}</p>
               <p className="mt-1 text-sm leading-6 text-rose-900/80 dark:text-rose-50">{t.topAlert}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-rose-300/70 bg-white/75 px-3 py-1 text-sm text-rose-700 dark:border-rose-300/25 dark:bg-rose-500/20 dark:text-rose-50">
+              <span
+                key={`violation-pill-${violations.length}`}
+                className="animate-shake rounded-full border border-rose-300/70 bg-white/75 px-3 py-1 text-sm text-rose-700 dark:border-rose-300/25 dark:bg-rose-500/20 dark:text-rose-50"
+              >
                 {t.violations}: {violations.length}/{VIOLATION_LIMIT}
               </span>
               {pauseReason && (
@@ -813,7 +827,16 @@ export default function ExamRunner({
               </h1>
             </div>
             <div className="flex items-center gap-3">
-              <div className="rounded-full border border-slate-200/80 bg-white/85 px-4 py-2 text-sm text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-100">
+              <div
+                style={timerCritical ? { animationDuration: '0.8s' } : undefined}
+                className={`rounded-full border px-4 py-2 text-sm shadow-depth-sm transition-all duration-300 ${
+                  timerCritical
+                    ? 'animate-pulse-ring border-rose-300/80 bg-rose-50/90 text-rose-700 dark:border-rose-300/30 dark:bg-rose-500/15 dark:text-rose-100'
+                    : timerWarning
+                      ? 'animate-pulse-ring border-amber-300/80 bg-amber-50/90 text-amber-800 dark:border-amber-300/30 dark:bg-amber-400/12 dark:text-amber-100'
+                      : 'border-slate-200/80 bg-white/85 text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-100'
+                }`}
+              >
                 <Clock3 className="mr-2 inline h-4 w-4 text-teal-600 dark:text-teal-300" />
                 {formatTime(timeLeft)}
               </div>
@@ -832,7 +855,7 @@ export default function ExamRunner({
             <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-sky-400" style={{ width: `${progress}%` }} />
           </div>
 
-          <div className="mt-6 rounded-[30px] border border-slate-200/80 bg-white/78 p-5 shadow-[0_34px_90px_-54px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-slate-900/75 dark:shadow-[0_40px_90px_-50px_rgba(15,118,110,0.45)] sm:p-7">
+          <div key={currentQuestion.id} className="animate-fadeInScale mt-6 rounded-[30px] border border-slate-200/80 bg-white/78 p-5 shadow-[0_34px_90px_-54px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-slate-900/75 dark:shadow-[0_40px_90px_-50px_rgba(15,118,110,0.45)] sm:p-7">
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 dark:bg-white/10 dark:text-teal-100">
                 {EXAM_CATEGORY_META[currentQuestion.type].label[locale]}
@@ -975,9 +998,9 @@ export default function ExamRunner({
                     onClick={() => setCurrentIndex(index)}
                     className={`rounded-2xl px-0 py-3 text-sm font-semibold transition ${
                       active
-                        ? 'bg-gradient-to-br from-teal-400 to-sky-400 text-slate-950 shadow-[0_20px_50px_-30px_rgba(34,211,238,0.9)]'
+                        ? 'bg-gradient-to-br from-teal-400 to-sky-400 text-slate-950 shadow-depth-sm'
                         : answered
-                          ? 'border border-teal-300/40 bg-teal-50 text-teal-950 dark:border-teal-300/25 dark:bg-teal-400/12 dark:text-white'
+                          ? 'border border-teal-300/40 bg-teal-50/80 text-teal-950 dark:border-teal-300/25 dark:bg-teal-400/12 dark:text-white'
                           : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-900/90'
                     }`}
                   >
@@ -999,8 +1022,8 @@ export default function ExamRunner({
         </div>
 
         {isPaused && !submitted && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-sm dark:bg-slate-950/70">
-            <div className="w-full max-w-xl rounded-[32px] border border-rose-200/80 bg-white/96 p-6 text-slate-950 shadow-[0_45px_120px_-56px_rgba(225,29,72,0.28)] dark:border-rose-300/20 dark:bg-slate-950/95 dark:text-white dark:shadow-[0_45px_120px_-45px_rgba(244,63,94,0.75)] sm:p-8">
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/30 px-4 backdrop-blur-[4px] dark:bg-slate-950/70">
+            <div className="animate-fadeInScale w-full max-w-xl rounded-[32px] border border-rose-200/80 bg-white/96 p-6 text-slate-950 shadow-[0_45px_120px_-56px_rgba(225,29,72,0.28)] dark:border-rose-300/20 dark:bg-slate-950/95 dark:text-white dark:shadow-[0_45px_120px_-45px_rgba(244,63,94,0.75)] sm:p-8">
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-[20px] bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200">
                 <ShieldAlert className="h-6 w-6" />
               </div>

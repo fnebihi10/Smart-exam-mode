@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { type CSSProperties, useEffect, useState } from 'react'
 import { ArrowRight, Bot, FileCheck2, FileStack, Sparkles } from 'lucide-react'
 import AIChatCard from '@/components/dashboard/AIChatCard'
 import UserCard from '@/components/dashboard/UserCard'
@@ -46,27 +47,40 @@ const copy = {
 export default function Dashboard() {
   const { locale } = useAppLocale()
   const t = copy[locale]
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setMounted(true)
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
 
   const quickStats = [
-    { title: t.materials, value: t.materialsValue, icon: FileStack },
-    { title: t.assistant, value: t.assistantValue, icon: Bot },
-    { title: t.exams, value: t.examsValue, icon: FileCheck2 },
-    { title: t.approach, value: t.approachValue, icon: Sparkles },
+    { title: t.materials, value: t.materialsValue, icon: FileStack, progress: 76 },
+    { title: t.assistant, value: t.assistantValue, icon: Bot, progress: 88 },
+    { title: t.exams, value: t.examsValue, icon: FileCheck2, progress: 71 },
+    { title: t.approach, value: t.approachValue, icon: Sparkles, progress: 93 },
   ]
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5 pb-4">
-      <section className="surface animate-fade-in-up p-6 sm:p-8 lg:p-10">
+      <section className="surface animate-fadeInScale p-6 sm:p-8 lg:p-10">
         <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <span className="eyebrow">{t.badge}</span>
-            <h1 className="page-title mt-5 max-w-3xl">{t.title}</h1>
+            <span className="eyebrow animate-fadeInUp [animation-delay:80ms] [animation-fill-mode:both]">{t.badge}</span>
+            <h1 className="page-title mt-5 max-w-3xl animate-fadeInUp [animation-delay:140ms] [animation-fill-mode:both]">{t.title}</h1>
             <p className="page-copy mt-5">{t.description}</p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:w-[36rem]">
-            {quickStats.map(({ title, value, icon: Icon }) => (
-              <div key={title} className="surface-muted p-4">
+            {quickStats.map(({ title, value, icon: Icon, progress }, index) => (
+              <div
+                key={title}
+                style={{ '--i': index } as CSSProperties}
+                className="surface-muted animate-fadeInUp p-4 [animation-delay:calc(var(--i)*80ms+220ms)] [animation-fill-mode:both]"
+              >
                 <div className="icon-shell h-11 w-11 text-[var(--accent)]">
                   <Icon className="h-5 w-5" />
                 </div>
@@ -74,6 +88,12 @@ export default function Dashboard() {
                   {title}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
+                <div className="mt-4 h-2 rounded-full bg-slate-200/70 dark:bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-emerald-400 transition-[width] duration-[800ms] ease-[cubic-bezier(0.4,0,0.2,1)]"
+                    style={{ width: mounted ? `${progress}%` : '0%' }}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -84,7 +104,7 @@ export default function Dashboard() {
         <div className="space-y-5">
           <UserCard />
 
-          <section className="surface animate-fade-in-up p-6 sm:p-7">
+          <section className="surface animate-fadeInScale p-6 sm:p-7">
             <p className="text-lg font-semibold text-slate-900 dark:text-white">{t.quickTitle}</p>
             <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.quickBody}</p>
 

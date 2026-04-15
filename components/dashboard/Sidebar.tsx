@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { type CSSProperties, useState } from 'react'
 import { BookOpen, FileCheck2, GraduationCap, LayoutDashboard, LogOut, Sparkles } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -50,10 +50,10 @@ export default function Sidebar() {
 
   return (
     <aside className="custom-scrollbar fixed inset-y-0 left-0 w-[17.25rem] overflow-y-auto p-4">
-      <div className="surface flex min-h-full flex-col p-5">
+      <div className="surface flex min-h-full flex-col border-r p-5 shadow-depth-xl backdrop-blur-[12px] animate-fadeInUp [border-right-color:var(--sidebar-edge)] [animation-delay:80ms] [animation-fill-mode:both]">
         <div className="flex items-start justify-between gap-3">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="icon-shell h-12 w-12 text-[var(--accent)]">
+            <div className="icon-shell h-12 w-12 text-[var(--accent)] shadow-depth-sm">
               <GraduationCap className="h-5 w-5" />
             </div>
             <div>
@@ -68,7 +68,7 @@ export default function Sidebar() {
           <LanguageToggle locale={locale} onChange={setLocale} />
         </div>
 
-        <div className="surface-muted mt-6 p-4">
+        <div className="surface-muted mt-6 p-4 animate-fadeInScale [animation-delay:140ms] [animation-fill-mode:both]">
           <span className="eyebrow">
             <Sparkles className="h-3.5 w-3.5" />
             {t.focused}
@@ -78,34 +78,44 @@ export default function Sidebar() {
           </p>
         </div>
 
-        <nav className="mt-6 space-y-2">
-          {links.map(({ name, href, icon: Icon }) => {
+        <nav className="mt-6">
+          <ul className="space-y-2">
+            {links.map(({ name, href, icon: Icon }, index) => {
             const isActive = pathname === href
 
             return (
-              <Link
+              <li
                 key={href}
-                href={href}
-                className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-[var(--accent-soft)] text-slate-900 shadow-[var(--shadow-soft)] dark:text-white'
-                    : 'text-slate-600 hover:bg-white/60 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-white'
-                }`}
+                style={{ '--i': index } as CSSProperties}
+                className="animate-fadeInUp [animation-delay:calc(var(--i)*60ms+180ms)] [animation-fill-mode:both]"
               >
-                <div className={`flex h-9 w-9 items-center justify-center rounded-xl border ${
-                  isActive
-                    ? 'border-transparent bg-white/80 text-[var(--accent)] dark:bg-slate-900/80'
-                    : 'border-[var(--border)] bg-white/50 text-slate-500 dark:bg-slate-900/60 dark:text-slate-400'
-                }`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <span>{name}</span>
-              </Link>
+                <Link
+                  href={href}
+                  className={`group/nav relative flex items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-sm font-medium transition-[transform,background-color,color,box-shadow,border-color] duration-300 ${
+                    isActive
+                      ? 'bg-[var(--accent-soft)] text-slate-900 shadow-[inset_0_0_0_1px_rgba(var(--color-primary-rgb),0.2),var(--shadow-sm)] dark:text-white'
+                      : 'text-slate-600 hover:translate-x-[3px] hover:bg-white/60 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-white'
+                  }`}
+                >
+                  {isActive && (
+                    <span className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-[var(--accent)]" />
+                  )}
+                  <div className={`icon-shell h-9 w-9 rounded-xl transition-[transform,box-shadow,background-color] duration-300 group-hover/nav:shadow-depth-sm ${
+                    isActive
+                      ? 'border-transparent bg-white/80 text-[var(--accent)] dark:bg-slate-900/80'
+                      : 'border-[var(--border)] bg-white/50 text-slate-500 dark:bg-slate-900/60 dark:text-slate-400'
+                  }`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span>{name}</span>
+                </Link>
+              </li>
             )
-          })}
+            })}
+          </ul>
         </nav>
 
-        <div className="mt-auto pt-6">
+        <div className="mt-auto pt-6 animate-fadeInUp [animation-delay:360ms] [animation-fill-mode:both]">
           <button
             type="button"
             onClick={handleLogout}
@@ -113,7 +123,7 @@ export default function Sidebar() {
             className="secondary-button w-full justify-center"
           >
             {loggingOut ? (
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-rose-500" />
+              <span className="spinner-arc h-4 w-4" />
             ) : (
               <LogOut className="h-4 w-4" />
             )}
