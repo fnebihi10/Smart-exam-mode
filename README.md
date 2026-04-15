@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Smart Exam Mode
 
-## Getting Started
+Smart Exam Mode is a bilingual study platform built with Next.js, Supabase, and OpenRouter. It lets students upload lecture materials, ask AI questions about those materials, generate structured exam drafts, publish exams, and run live exam sessions with violation tracking.
 
-First, run the development server:
+## What the project does
+
+- Uploads and stores lecture files in Supabase Storage
+- Extracts lecture text from PDF, DOCX, and TXT files
+- Uses AI to answer questions from uploaded materials
+- Generates editable exam drafts from topic focus plus lecture context
+- Publishes exams and launches a live exam mode with timer and anti-switch warnings
+
+## Run locally
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Create `.env.local` in the project root.
+
+3. Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open `http://localhost:3000`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Required environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Add these values to `.env.local`:
 
-## Learn More
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_EXAM_MODEL=openai/gpt-4o-mini
+OPENROUTER_CHAT_MODEL=openai/gpt-4o-mini
+```
 
-To learn more about Next.js, take a look at the following resources:
+Notes:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `OPENROUTER_EXAM_MODEL` and `OPENROUTER_CHAT_MODEL` are optional overrides.
+- Run the SQL in [supabase_setup.sql](/c:/Users/Bluechip/Smart-exam-mode/supabase_setup.sql) to create the required tables and policies.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Stack
 
-## Deploy on Vercel
+- Next.js 16
+- React 19
+- TypeScript
+- Supabase Auth, Database, and Storage
+- OpenRouter / OpenAI SDK
+- Tailwind CSS
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Live link
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+No production deployment URL is configured in this repository yet.

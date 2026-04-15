@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -10,7 +10,6 @@ import {
   FileCheck2,
   FileText,
   Layers3,
-  Loader2,
   Play,
   RefreshCcw,
   Sparkles,
@@ -22,6 +21,11 @@ import { createClient } from '@/utils/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
 import {
+  EXAM_BUILDER_LECTURE_COLUMNS,
+  listLectureFiles,
+  type LectureFileListItem,
+} from '@/utils/lectureFiles'
+import {
   DEFAULT_EXAM_SETTINGS,
   EXAM_CATEGORY_META,
   type ExamDifficulty,
@@ -31,13 +35,6 @@ import {
   type GeneratedExam,
   type StoredExamRecord,
 } from '@/types/exams'
-
-interface LectureOption {
-  id: string
-  name: string
-  file_type: string
-  created_at: string
-}
 
 const copy = {
   en: {
@@ -62,6 +59,9 @@ const copy = {
     lectureLoading: 'Loading lecture files...',
     lectureEmpty:
       'No lecture files found yet. Upload materials first or use topic focus only.',
+    lectureLoadError:
+      'Lecture sources could not be loaded right now. You can still use topic focus or try again.',
+    retryLectures: 'Retry lecture loading',
     selectAllLectures: 'Use all lectures',
     clearLectures: 'Clear selection',
     selectedLectures: 'Selected lectures',
@@ -139,6 +139,10 @@ const copy = {
     tooManyQuestions: 'Keep the generated exam at 30 questions or fewer.',
     tryAgain: 'Try again',
     signIn: 'Sign in',
+    configureStep: 'Configure',
+    generateStep: 'Generate',
+    editStep: 'Edit',
+    publishStep: 'Publish',
   },
   sq: {
     back: 'Kthehu te dashboard',
@@ -162,6 +166,9 @@ const copy = {
     lectureLoading: 'Po ngarkohen materialet...',
     lectureEmpty:
       'Nuk ka materiale ende. Ngarko leksione fillimisht ose perdor vetem fokusin e temes.',
+    lectureLoadError:
+      'Burimet e leksioneve nuk u ngarkuan dot tani. Mund te perdoresh fokusin e temes ose te provosh perseri.',
+    retryLectures: 'Ringarko leksionet',
     selectAllLectures: 'Perdor te gjitha leksionet',
     clearLectures: 'Hiq perzgjedhjen',
     selectedLectures: 'Leksione te zgjedhura',
@@ -240,6 +247,10 @@ const copy = {
     tooManyQuestions: 'Mbajeni provimin me 30 pyetje ose me pak.',
     tryAgain: 'Provo perseri',
     signIn: 'Kycu',
+    configureStep: 'Konfiguro',
+    generateStep: 'Gjenero',
+    editStep: 'Modifiko',
+    publishStep: 'Publiko',
   },
 } as const
 
@@ -352,6 +363,12 @@ const recalculateDraft = (exam: GeneratedExam): GeneratedExam => ({
 
 const difficultyOptions: ExamDifficulty[] = ['mixed', 'easy', 'medium', 'hard']
 
+const questionAccentClasses: Record<ExamQuestionType, string> = {
+  multiple_choice: 'border-l-teal-500 dark:border-l-teal-300',
+  fill_in_blank: 'border-l-amber-500 dark:border-l-amber-300',
+  open_ended: 'border-l-sky-500 dark:border-l-sky-300',
+}
+
 export default function ExamBuilder() {
   const { user, loading } = useAuth()
   const { locale } = useAppLocale()
@@ -362,41 +379,17 @@ export default function ExamBuilder() {
   )
   const [draft, setDraft] = useState<GeneratedExam | null>(null)
   const [publishedExams, setPublishedExams] = useState<StoredExamRecord[]>([])
-  const [lectureOptions, setLectureOptions] = useState<LectureOption[]>([])
+  const [lectureOptions, setLectureOptions] = useState<LectureFileListItem[]>([])
   const [loadingLectures, setLoadingLectures] = useState(true)
   const [loadingSaved, setLoadingSaved] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [lectureLoadError, setLectureLoadError] = useState('')
   const [contextAvailable, setContextAvailable] = useState(true)
   const [requiresExamTableSetup, setRequiresExamTableSetup] = useState(false)
-
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <section className="surface p-7 sm:p-9">
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
-            {t.sessionExpired}
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400">
-            {t.setupHint}
-          </p>
-          <Link href="/login" className="primary-button mt-6 inline-flex justify-center">
-            {t.signIn}
-          </Link>
-        </section>
-      </div>
-    )
-  }
+  const [publishedThisSession, setPublishedThisSession] = useState(false)
 
   useEffect(() => {
     setConfig((current) => ({ ...current, language: locale }))
@@ -418,6 +411,15 @@ export default function ExamBuilder() {
     [config.categories]
   )
 
+  const currentStep = publishing || publishedThisSession ? 4 : draft ? 3 : generating ? 2 : 1
+
+  const steps = [
+    { key: 'configure', label: t.configureStep },
+    { key: 'generate', label: t.generateStep },
+    { key: 'edit', label: t.editStep },
+    { key: 'publish', label: t.publishStep },
+  ]
+
   const fetchPublishedExams = useCallback(async () => {
     if (!user) {
       setPublishedExams([])
@@ -433,6 +435,7 @@ export default function ExamBuilder() {
         .select(
           'id, title, description, topic_focus, difficulty, question_count, total_points, estimated_duration_minutes, status, exam_payload, created_at'
         )
+        .eq('user_id', user.id)
         .eq('status', 'published')
         .order('created_at', { ascending: false })
 
@@ -464,23 +467,20 @@ export default function ExamBuilder() {
   const fetchLectureOptions = useCallback(async () => {
     if (!user) {
       setLectureOptions([])
+      setLectureLoadError('')
       setLoadingLectures(false)
       return
     }
 
     setLoadingLectures(true)
+    setLectureLoadError('')
 
     try {
-      const { data, error } = await supabase
-        .from('lecture_files')
-        .select('id, name, file_type, created_at')
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        throw new Error(error.message)
-      }
-
-      const files = (data as LectureOption[]) || []
+      const files = await listLectureFiles<LectureFileListItem>(
+        supabase,
+        user.id,
+        EXAM_BUILDER_LECTURE_COLUMNS
+      )
       setLectureOptions(files)
       setConfig((current) => ({
         ...current,
@@ -491,12 +491,13 @@ export default function ExamBuilder() {
               )
             : files.map((file) => file.id),
       }))
-    } catch {
+    } catch (err: unknown) {
       setLectureOptions([])
+      setLectureLoadError(getErrorMessage(err, t.lectureLoadError))
     } finally {
       setLoadingLectures(false)
     }
-  }, [supabase, user])
+  }, [supabase, t.lectureLoadError, user])
 
   useEffect(() => {
     void fetchLectureOptions()
@@ -567,6 +568,7 @@ export default function ExamBuilder() {
     event.preventDefault()
     if (generating) return
     setGenerating(true)
+    setPublishedThisSession(false)
     setError('')
     setSuccess('')
 
@@ -637,6 +639,10 @@ export default function ExamBuilder() {
   const handlePublish = async () => {
     if (!draft) return
     if (publishing) return
+    if (!user) {
+      setError(t.sessionExpired)
+      return
+    }
 
     setPublishing(true)
     setError('')
@@ -672,6 +678,7 @@ export default function ExamBuilder() {
 
       setPublishedExams((current) => [data as StoredExamRecord, ...current])
       setRequiresExamTableSetup(false)
+      setPublishedThisSession(true)
       setSuccess(t.publishSuccess)
     } catch (err: unknown) {
       const message = getErrorMessage(err, t.publishError)
@@ -699,9 +706,35 @@ export default function ExamBuilder() {
       timeStyle: 'short',
     })
 
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <span className="spinner-arc h-8 w-8" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <section className="surface animate-fadeInScale p-7 sm:p-9">
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
+            {t.sessionExpired}
+          </h1>
+          <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400">
+            {t.setupHint}
+          </p>
+          <Link href="/login" className="primary-button mt-6 inline-flex justify-center">
+            {t.signIn}
+          </Link>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-5 pb-4">
-      <section className="surface animate-fade-in-up p-6 sm:p-8 lg:p-10">
+      <section className="surface animate-fadeInScale p-6 sm:p-8 lg:p-10">
         <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr] xl:items-end">
           <div>
             <Link href="/dashboard" className="secondary-button px-4 py-2">
@@ -714,7 +747,7 @@ export default function ExamBuilder() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="surface-muted p-4">
+            <div className="surface-muted animate-fadeInUp p-4 [animation-delay:120ms] [animation-fill-mode:both]">
               <div className="icon-shell h-11 w-11 text-[var(--accent)]">
                 <Layers3 className="h-4 w-4" />
               </div>
@@ -726,7 +759,7 @@ export default function ExamBuilder() {
               </p>
             </div>
 
-            <div className="surface-muted p-4">
+            <div className="surface-muted animate-fadeInUp p-4 [animation-delay:200ms] [animation-fill-mode:both]">
               <div className="icon-shell h-11 w-11 text-amber-600 dark:text-amber-300">
                 <Target className="h-4 w-4" />
               </div>
@@ -738,7 +771,7 @@ export default function ExamBuilder() {
               </p>
             </div>
 
-            <div className="surface-muted p-4">
+            <div className="surface-muted animate-fadeInUp p-4 [animation-delay:280ms] [animation-fill-mode:both]">
               <div className="icon-shell h-11 w-11 text-sky-600 dark:text-sky-300">
                 <Clock3 className="h-4 w-4" />
               </div>
@@ -753,20 +786,60 @@ export default function ExamBuilder() {
         </div>
       </section>
 
+      <section className="surface animate-fadeInScale p-5 sm:p-6">
+        <ol className="grid gap-4 md:grid-cols-4">
+          {steps.map((step, index) => {
+            const stepNumber = index + 1
+            const completed = publishedThisSession ? stepNumber <= 4 : stepNumber < currentStep
+            const current = stepNumber === currentStep && !publishedThisSession
+
+            return (
+              <li
+                key={step.key}
+                style={{ '--i': index } as CSSProperties}
+                className="animate-fadeInUp [animation-delay:calc(var(--i)*70ms+80ms)] [animation-fill-mode:both]"
+              >
+                <div className={`surface-muted flex items-center gap-4 border px-4 py-4 ${
+                  current ? 'border-[rgba(var(--color-primary-rgb),0.3)]' : ''
+                }`}>
+                  <span className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-sm font-semibold ${
+                    completed
+                      ? 'border-transparent bg-[var(--accent)] text-white shadow-depth-sm'
+                      : current
+                        ? 'border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] text-[var(--accent)] animate-pulse-ring'
+                        : 'border-[var(--surface-border)] bg-white/70 text-slate-500 dark:bg-slate-900/60 dark:text-slate-400'
+                  }`}>
+                    {completed ? <CheckCircle2 className="h-5 w-5" /> : stepNumber}
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                      0{stepNumber}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                      {step.label}
+                    </p>
+                  </div>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      </section>
+
       {error && (
-        <div className="surface-muted border-rose-200/70 bg-rose-50/80 p-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300">
+        <div className="surface-muted animate-fadeInUp border-rose-200/70 bg-rose-50/80 p-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="surface-muted border-emerald-200/70 bg-emerald-50/80 p-4 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300">
+        <div className="surface-muted animate-success-pop border-emerald-200/70 bg-emerald-50/80 p-4 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300">
           {success}
         </div>
       )}
 
       {requiresExamTableSetup && (
-        <div className="surface-muted border-amber-200/70 bg-amber-50/80 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
+        <div className="surface-muted animate-fadeInUp border-amber-200/70 bg-amber-50/80 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
           <p>{t.setupNotice}</p>
           <p className="mt-2 text-xs text-amber-700/90 dark:text-amber-200/80">{t.setupHint}</p>
         </div>
@@ -776,13 +849,15 @@ export default function ExamBuilder() {
         onSubmit={handleGenerate}
         className="grid gap-5 xl:grid-cols-[0.88fr_1.12fr]"
       >
-        <section className="surface animate-fade-in-up p-6 sm:p-7">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-            {t.setupTitle}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-            {t.setupBody}
-          </p>
+        <section className="surface animate-fadeInScale p-6 sm:p-7">
+          <div className="card-header-divider">
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+              {t.setupTitle}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              {t.setupBody}
+            </p>
+          </div>
 
           <div className="mt-6 grid gap-4">
             <label className="space-y-2">
@@ -876,9 +951,9 @@ export default function ExamBuilder() {
           </div>
         </section>
 
-        <section className="surface animate-fade-in-up p-6 sm:p-7">
+        <section className="surface animate-fadeInScale p-6 sm:p-7">
           <div className="surface-muted mb-6 p-4">
-            <div className="flex items-start justify-between gap-4">
+            <div className="card-header-divider flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                   {t.lectureScopeTitle}
@@ -920,11 +995,26 @@ export default function ExamBuilder() {
             </div>
 
             <div className="mt-4 max-h-64 space-y-3 overflow-y-auto pr-1 custom-scrollbar">
+              {lectureLoadError ? (
+                <div className="surface-muted border-amber-200/70 bg-amber-50/80 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
+                  <p>{lectureLoadError}</p>
+                  <button
+                    type="button"
+                    onClick={() => void fetchLectureOptions()}
+                    className="secondary-button mt-3 px-4 py-2"
+                  >
+                    <RefreshCcw className="h-4 w-4" />
+                    {t.retryLectures}
+                  </button>
+                </div>
+              ) : null}
+
               {loadingLectures ? (
-                <div className="text-sm text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+                  <span className="spinner-arc h-4 w-4" />
                   {t.lectureLoading}
                 </div>
-              ) : lectureOptions.length === 0 ? (
+              ) : lectureLoadError ? null : lectureOptions.length === 0 ? (
                 <div className="text-sm text-slate-500 dark:text-slate-400">
                   {t.lectureEmpty}
                 </div>
@@ -935,10 +1025,10 @@ export default function ExamBuilder() {
                   return (
                     <label
                       key={lecture.id}
-                      className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
+                      className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition-all duration-300 ${
                         isSelected
-                          ? 'border-[var(--accent)] bg-[var(--accent-soft)]/60'
-                          : 'border-[var(--border)] bg-white/30 dark:bg-slate-900/20'
+                          ? 'border-[var(--accent)] bg-[var(--accent-soft)]/60 shadow-depth-sm'
+                          : 'border-[var(--border)] bg-white/30 hover:translate-x-1 hover:bg-white/60 dark:bg-slate-900/20 dark:hover:bg-slate-900/55'
                       }`}
                     >
                       <input
@@ -962,6 +1052,8 @@ export default function ExamBuilder() {
             </div>
           </div>
 
+          <hr className="section-divider" />
+
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
@@ -984,7 +1076,7 @@ export default function ExamBuilder() {
               const meta = EXAM_CATEGORY_META[category.type]
 
               return (
-                <article key={category.type} className="surface-muted p-4">
+                <article key={category.type} className={`surface-muted border-l-4 p-4 ${questionAccentClasses[category.type]}`}>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">
                     {meta.label[locale]}
                   </p>
@@ -1065,6 +1157,8 @@ export default function ExamBuilder() {
             </div>
           </div>
 
+          <hr className="section-divider mt-6" />
+
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {totalQuestions >= 14 && totalQuestions <= 15
@@ -1074,11 +1168,11 @@ export default function ExamBuilder() {
             <button
               type="submit"
               disabled={generating || totalQuestions < 1 || totalQuestions > 30}
-              className="primary-button justify-center"
+              className={`primary-button justify-center shadow-depth-md ${generating ? 'button-shimmer' : ''}`}
             >
               {generating ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="spinner-arc h-4 w-4" />
                   {t.generating}
                 </>
               ) : (
@@ -1093,8 +1187,8 @@ export default function ExamBuilder() {
       </form>
 
       {draft && (
-        <section className="surface animate-fade-in-up overflow-hidden">
-          <div className="border-b border-[var(--border)] px-6 py-5 sm:px-7">
+        <section className="surface animate-fadeInScale overflow-hidden">
+          <div className="card-header-divider px-6 py-5 sm:px-7">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1119,11 +1213,11 @@ export default function ExamBuilder() {
                 type="button"
                 onClick={handlePublish}
                 disabled={publishing}
-                className="primary-button justify-center"
+                className={`primary-button justify-center shadow-depth-md ${publishing ? 'button-shimmer' : ''}`}
               >
                 {publishing ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="spinner-arc h-4 w-4" />
                     {t.publishing}
                   </>
                 ) : (
@@ -1139,9 +1233,11 @@ export default function ExamBuilder() {
           <div className="grid gap-5 px-6 py-6 sm:px-7 lg:grid-cols-[0.72fr_1.28fr]">
             <div className="space-y-5">
               <section className="surface-muted p-5">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  {t.editExam}
-                </h3>
+                <div className="card-header-divider">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                    {t.editExam}
+                  </h3>
+                </div>
 
                 <div className="mt-5 space-y-4">
                   <label className="space-y-2">
@@ -1250,7 +1346,7 @@ export default function ExamBuilder() {
               </section>
 
               <section className="surface-muted p-5">
-                <div className="flex items-center justify-between gap-3">
+                <div className="card-header-divider flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                     {t.instructions}
                   </h3>
@@ -1297,7 +1393,7 @@ export default function ExamBuilder() {
               </section>
 
               <section className="surface-muted p-5">
-                <div className="flex items-center justify-between gap-3">
+                <div className="card-header-divider flex items-center justify-between gap-3">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                     {t.addQuestion}
                   </h3>
@@ -1369,7 +1465,11 @@ export default function ExamBuilder() {
                 const meta = EXAM_CATEGORY_META[question.type]
 
                 return (
-                  <article key={question.id} className="surface-muted p-5">
+                  <article
+                    key={question.id}
+                    style={{ '--qi': index } as CSSProperties}
+                    className={`surface-muted animate-fadeInUp border-l-4 p-5 ${questionAccentClasses[question.type]} [animation-delay:calc(var(--qi)*80ms)] [animation-fill-mode:both]`}
+                  >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-3">
                         <span className="icon-shell h-11 w-11 text-[var(--accent)]">
@@ -1415,6 +1515,7 @@ export default function ExamBuilder() {
                               ),
                             }))
                           }
+                          data-destructive="true"
                           className="secondary-button px-4 py-2 text-rose-600 dark:text-rose-300"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1657,8 +1758,8 @@ export default function ExamBuilder() {
         </section>
       )}
 
-      <section className="surface animate-fade-in-up overflow-hidden">
-        <div className="border-b border-[var(--border)] px-6 py-5">
+      <section className="surface animate-fadeInScale overflow-hidden">
+        <div className="card-header-divider px-6 py-5">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
             {t.savedTitle}
           </h2>
@@ -1669,7 +1770,7 @@ export default function ExamBuilder() {
 
         {loadingSaved ? (
           <div className="flex min-h-56 items-center justify-center p-6">
-            <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
+            <span className="spinner-arc h-8 w-8" />
           </div>
         ) : requiresExamTableSetup ? (
           <div className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
@@ -1682,7 +1783,7 @@ export default function ExamBuilder() {
         ) : (
           <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
             {publishedExams.map((exam) => (
-              <article key={exam.id} className="surface-muted p-5">
+              <article key={exam.id} className="surface-muted p-5 transition-all duration-300 hover:-translate-y-[3px] hover:shadow-depth-lg">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -1719,7 +1820,7 @@ export default function ExamBuilder() {
                   <span>{formatDate(exam.created_at)}</span>
                 </div>
 
-                <Link href={`/exam/${exam.id}`} className="primary-button mt-5 w-full justify-center">
+                <Link href={`/exam/${exam.id}`} className="primary-button mt-5 w-full justify-center hover:animate-pulse-ring">
                   <Play className="h-4 w-4" />
                   {t.startExam}
                 </Link>

@@ -49,7 +49,10 @@ export async function getLectureContext(selectedLectureIds?: string[]) {
           .download(file.storage_path)
 
         if (storageError || !blob) {
-          console.error(`AI CONTEXT: Error downloading ${file.name}:`, storageError)
+          console.error(
+            `AI CONTEXT: Error downloading ${file.name}:`,
+            storageError
+          )
           continue
         }
 
@@ -59,10 +62,16 @@ export async function getLectureContext(selectedLectureIds?: string[]) {
         if (file.file_type.includes('pdf') || file.name.endsWith('.pdf')) {
           const data = await pdf(buffer)
           text = data.text
-        } else if (file.file_type.includes('wordprocessingml') || file.name.endsWith('.docx')) {
+        } else if (
+          file.file_type.includes('wordprocessingml') ||
+          file.name.endsWith('.docx')
+        ) {
           const result = await mammoth.extractRawText({ buffer })
           text = result.value
-        } else if (file.file_type.includes('plain') || file.name.endsWith('.txt')) {
+        } else if (
+          file.file_type.includes('plain') ||
+          file.name.endsWith('.txt')
+        ) {
           text = buffer.toString('utf-8')
         }
 
@@ -70,13 +79,16 @@ export async function getLectureContext(selectedLectureIds?: string[]) {
           combinedContext += `\n--- SOURCE: ${file.name} ---\n${text}\n`
         }
       } catch (fileError) {
-        console.error(`AI CONTEXT: Failed to process file ${file.name}:`, fileError)
+        console.error(
+          `AI CONTEXT: Failed to process file ${file.name}:`,
+          fileError
+        )
       }
     }
 
     const maxChars = 25000
     if (combinedContext.length > maxChars) {
-      return `${combinedContext.slice(0, maxChars)}\n... [Pjesa tjetër e materialit është shkurtuar]`
+      return `${combinedContext.slice(0, maxChars)}\n... [Pjesa tjeter e materialit eshte shkurtuar]`
     }
 
     return combinedContext
