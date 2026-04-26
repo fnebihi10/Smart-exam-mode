@@ -7,6 +7,7 @@ import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Mail, User } from 'lucide-r
 import AuthShell from '@/components/auth/AuthShell'
 import { useAuthLocale } from '@/components/auth/useAuthLocale'
 import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
+import { getClientRedirectUrl } from '@/utils/site-url'
 
 const copy = {
   en: {
@@ -122,6 +123,7 @@ export default function SignUp() {
       password,
       options: {
         data: { full_name: name.trim() },
+        emailRedirectTo: getClientRedirectUrl('/login'),
       },
     })
 

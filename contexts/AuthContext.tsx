@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
+import { getClientRedirectUrl } from '@/utils/site-url'
 
 interface AuthContextType {
   user: User | null
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPasswordForEmail = async (email: string) => {
     return await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: getClientRedirectUrl('/reset-password'),
     })
   }
 
