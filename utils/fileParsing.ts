@@ -18,7 +18,6 @@ export async function getLectureContext(selectedLectureIds?: string[]) {
     } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      console.log('AI CONTEXT: No user detected', authError)
       return ''
     }
 

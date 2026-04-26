@@ -12,6 +12,8 @@ import {
   type ExamQuestionType,
 } from '@/types/exams'
 
+export const maxDuration = 60
+
 const examModel = getOpenAIModel('OPENAI_EXAM_MODEL')
 
 const questionTypeOrder: ExamQuestionType[] = [
@@ -55,6 +57,9 @@ const normalizeStringArray = (value: unknown, fallback: string[]) => {
 
   return cleaned.length ? cleaned : fallback
 }
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
 
 const normalizeQuestionType = (value: unknown, question?: Record<string, unknown>): ExamQuestionType => {
   if (typeof value === 'string') {
@@ -129,8 +134,7 @@ const extractJson = (content: string) => {
 }
 
 const sanitizeQuestion = (question: unknown, index: number, points: number): ExamQuestion => {
-  const safeQuestion =
-    typeof question === 'object' && question !== null ? (question as Record<string, unknown>) : {}
+  const safeQuestion = asRecord(question)
 
   const type = normalizeQuestionType(safeQuestion.type, safeQuestion)
 
@@ -311,8 +315,7 @@ ${lectureContext || 'No uploaded lecture materials were found for this user.'}`
 }
 
 const readQuestionsArray = (raw: unknown) => {
-  const safeValue =
-    typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
+  const safeValue = asRecord(raw)
 
   if (Array.isArray(safeValue.questions)) {
     return safeValue.questions
@@ -520,13 +523,17 @@ export async function POST(request: NextRequest) {
       estimatedDurationMinutes: clamp(Number(body.estimatedDurationMinutes) || 60, 10, 240),
       selectedLectureIds,
       categories: categories
-        .map((category) => ({
-          type: questionTypeOrder.includes(category.type as ExamQuestionType)
-            ? (category.type as ExamQuestionType)
-            : 'multiple_choice',
-          count: clamp(Number(category.count) || 0, 0, 20),
-          points: clamp(Number(category.points) || 1, 1, 100),
-        }))
+        .map((category) => {
+          const safeCategory = asRecord(category)
+
+          return {
+            type: questionTypeOrder.includes(safeCategory.type as ExamQuestionType)
+              ? (safeCategory.type as ExamQuestionType)
+              : 'multiple_choice',
+            count: clamp(Number(safeCategory.count) || 0, 0, 20),
+            points: clamp(Number(safeCategory.points) || 1, 1, 100),
+          }
+        })
         .filter((category) => category.count > 0),
     }
 

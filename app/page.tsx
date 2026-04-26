@@ -89,26 +89,26 @@ export default function Home() {
     <main className="relative min-h-screen overflow-hidden px-4 py-4 sm:px-6 lg:h-screen lg:overflow-hidden lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col lg:h-[calc(100vh-2rem)]">
         <div className="flex items-center justify-between gap-4">
-        <Link href="/" className="inline-flex items-center gap-3 rounded-full px-3 py-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
-          <span className="icon-shell h-11 w-11 text-[var(--accent)]">
-            <GraduationCap className="h-5 w-5" />
-          </span>
-          <span>
-            <span className="block">Smart Exam Mode</span>
-            <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t.subtitle}</span>
-          </span>
-        </Link>
+          <Link href="/" className="inline-flex items-center gap-3 rounded-full px-3 py-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
+            <span className="icon-shell h-11 w-11 text-[var(--accent)]">
+              <GraduationCap className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="block">Smart Exam Mode</span>
+              <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">{t.subtitle}</span>
+            </span>
+          </Link>
 
-        <div className="flex items-center gap-3">
-          <LanguageToggle locale={locale} onChange={setLocale} />
-          <ThemeToggle />
-          <Link href="/login" className="secondary-button">
-            {t.login}
-          </Link>
-          <Link href="/signup" className="primary-button">
-            {t.signup}
-          </Link>
-        </div>
+          <div className="flex items-center gap-3">
+            <LanguageToggle locale={locale} onChange={setLocale} />
+            <ThemeToggle />
+            <Link href="/login" className="secondary-button">
+              {t.login}
+            </Link>
+            <Link href="/signup" className="primary-button">
+              {t.signup}
+            </Link>
+          </div>
         </div>
 
         <div className="mt-3 grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[1.38fr_0.62fr] lg:items-stretch lg:overflow-hidden">
@@ -119,7 +119,7 @@ export default function Home() {
                 {t.badge}
               </span>
 
-              <h1 className="mt-5 max-w-[19ch] text-balance text-[clamp(2.65rem,3.35vw,4rem)] font-semibold tracking-[-0.05em] leading-[0.95] text-slate-900 dark:text-white">
+              <h1 className="mt-5 max-w-[19ch] text-balance text-[clamp(2.65rem,3.35vw,4rem)] font-semibold leading-[0.95] text-slate-900 dark:text-white">
                 {t.title}
               </h1>
               <p className="mt-4 max-w-[46rem] text-[15px] leading-7 text-slate-600 dark:text-slate-300">
