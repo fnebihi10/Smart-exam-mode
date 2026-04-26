@@ -32,16 +32,16 @@ export default function UserCard() {
   const initial = displayName.charAt(0).toUpperCase()
 
   return (
-    <section className="surface animate-fade-in-up p-6 sm:p-7">
-      <div className="flex flex-col gap-6">
+    <section className="surface animate-fade-in-up p-5 sm:p-6">
+      <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-gradient-to-br from-[var(--accent)] to-emerald-400 text-2xl font-semibold text-white shadow-[0_22px_34px_-24px_rgba(15,118,110,0.8)]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-[var(--accent)] to-emerald-400 text-xl font-semibold text-white shadow-[0_22px_34px_-24px_rgba(15,118,110,0.8)]">
               {initial}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{displayName}</h2>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{displayName}</h2>
                 <BadgeCheck className="h-4 w-4 text-[var(--accent)]" />
               </div>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.title}</p>

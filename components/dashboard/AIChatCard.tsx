@@ -30,6 +30,7 @@ const copy = {
       'Explain the difference between CPU and GPU in simple language.',
     ],
     sendPlaceholder: 'Ask about your material, request an exam quiz, or ask for a summary...',
+    sendButton: 'Send',
     sendTitle: 'Send question',
     keyHint: 'Press Enter to send, Shift + Enter for a new line.',
     sourceHint: 'The assistant works with the materials uploaded in your account.',
@@ -51,6 +52,7 @@ const copy = {
       'Shpjego dallimin mes CPU dhe GPU me gjuhe te thjeshte.',
     ],
     sendPlaceholder: 'Pyet per materialin tend, kerko pyetje provimi ose permbledhje...',
+    sendButton: 'Dergo',
     sendTitle: 'Dergo pyetjen',
     keyHint: 'Shtyp Enter per dergim, Shift + Enter per rresht te ri.',
     sourceHint: 'Asistenti perdor materialet qe ke ngarkuar ne llogarine tende.',
@@ -121,16 +123,16 @@ export default function AIChatCard() {
   }
 
   return (
-    <section className="surface animate-fadeInScale flex min-h-[42rem] flex-col overflow-hidden">
-      <header className="card-header-divider px-6 py-5 sm:px-7">
+    <section className="surface animate-fadeInScale flex min-h-[34rem] flex-col overflow-hidden">
+      <header className="card-header-divider px-5 py-4 sm:px-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] bg-gradient-to-br from-[var(--accent)] to-emerald-400 text-white shadow-[0_22px_34px_-24px_rgba(15,118,110,0.8)]">
-              <Bot className="h-6 w-6" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-gradient-to-br from-[var(--accent)] to-emerald-400 text-white shadow-[0_22px_34px_-24px_rgba(15,118,110,0.8)]">
+              <Bot className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{t.title}</h2>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t.title}</h2>
                 <span className="status-pill">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
                   {t.active}
@@ -152,18 +154,18 @@ export default function AIChatCard() {
         </div>
       </header>
 
-      <div ref={scrollRef} className="custom-scrollbar dashboard-scroll-mask flex-1 overflow-y-auto px-6 py-6 sm:px-7">
+      <div ref={scrollRef} className="custom-scrollbar dashboard-scroll-mask flex-1 overflow-y-auto px-5 py-5 sm:px-6">
         {messages.length === 0 && !loading ? (
           <div className="flex h-full flex-col justify-center">
             <div className="mx-auto max-w-2xl text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-[var(--accent-soft)] text-[var(--accent)]">
-                <Sparkles className="h-6 w-6" />
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[20px] bg-[var(--accent-soft)] text-[var(--accent)]">
+                <Sparkles className="h-5 w-5" />
               </div>
-              <h3 className="mt-5 text-2xl font-semibold text-slate-900 dark:text-white">{t.emptyTitle}</h3>
-              <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400">{t.emptyBody}</p>
+              <h3 className="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{t.emptyTitle}</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.emptyBody}</p>
             </div>
 
-            <div className="mx-auto mt-8 grid w-full max-w-3xl gap-3 md:grid-cols-3">
+            <div className="mx-auto mt-6 grid w-full max-w-3xl gap-3 md:grid-cols-3">
               {t.prompts.map((prompt) => (
                 <button
                   key={prompt}
@@ -246,14 +248,14 @@ export default function AIChatCard() {
         )}
       </div>
 
-      <div className="border-t border-[var(--surface-divider)] px-6 py-5 sm:px-7">
+      <div className="border-t border-[var(--surface-divider)] px-5 py-4 sm:px-6">
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="relative">
+          <div className="surface-muted overflow-hidden p-2.5">
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder={t.sendPlaceholder}
-              className="field-input custom-scrollbar min-h-[7rem] resize-none px-5 pr-16"
+              className="custom-scrollbar min-h-[6.25rem] w-full resize-none rounded-[22px] border-0 bg-transparent px-3 py-3 text-[15px] leading-7 text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed dark:text-slate-100 dark:placeholder:text-slate-500"
               disabled={loading}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
@@ -264,19 +266,25 @@ export default function AIChatCard() {
                 }
               }}
             />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="primary-button absolute bottom-4 right-4 h-11 w-11 rounded-2xl px-0 hover:scale-[1.03] hover:shadow-glow-primary active:scale-95"
-              title={t.sendTitle}
-            >
-              {loading ? <span className="spinner-arc h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
-            </button>
-          </div>
 
-          <div className="flex flex-col gap-2 text-xs text-slate-500 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-            <p>{t.keyHint}</p>
-            <p>{t.sourceHint}</p>
+            <div className="section-divider mx-2 my-2" />
+
+            <div className="flex flex-col gap-3 px-2 pb-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                <p>{t.keyHint}</p>
+                <p>{t.sourceHint}</p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="primary-button min-w-[9.5rem] justify-center self-end px-5 sm:self-auto"
+                title={t.sendTitle}
+              >
+                {loading ? <span className="spinner-arc h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+                {t.sendButton}
+              </button>
+            </div>
           </div>
         </form>
       </div>

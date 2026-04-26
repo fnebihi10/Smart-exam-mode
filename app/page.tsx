@@ -1,9 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import { ArrowRight, Bot, CheckCircle2, FileText, GraduationCap, Sparkles } from 'lucide-react'
+import { useMemo } from 'react'
+import { ArrowRight, Bot, FileText, GraduationCap, Sparkles } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import LanguageToggle from '@/components/i18n/LanguageToggle'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
@@ -19,13 +18,9 @@ const copy = {
     description: 'Smart Exam Mode brings lecture materials, an AI assistant, and a cleaner working panel into one place.',
     start: 'Get started',
     existing: 'I already have an account',
+    openDashboard: 'Open dashboard',
     highlightsTitle: 'What you get immediately',
     highlightsBody: 'Less visual noise, more orientation.',
-    matureTitle: 'Sharper product direction',
-    matureBody: 'Clearer hierarchy, better pacing, and more stable components.',
-    example: 'Example',
-    examplePrompt: 'Summarize the chapter about CPU architecture in key points.',
-    exampleReply: 'AI responds with core concepts, simplified explanation, and direction for the next questions.',
     formats: 'Supported formats',
     use: 'Use case',
     feeling: 'Feeling',
@@ -46,13 +41,9 @@ const copy = {
     description: 'Smart Exam Mode bashkon materialet e leksioneve, asistentin AI dhe nje panel me te paster ne nje vend te vetem.',
     start: 'Fillo tani',
     existing: 'Kam llogari ekzistuese',
+    openDashboard: 'Hap dashboard-in',
     highlightsTitle: 'Cfare fiton menjehere',
     highlightsBody: 'Me pak zhurme vizuale, me shume orientim.',
-    matureTitle: 'Drejtim me i pjekur',
-    matureBody: 'Hierarki me e qarte, ritem me i mire dhe komponente me te qendrueshem.',
-    example: 'Shembull',
-    examplePrompt: 'Permblidh kapitullin mbi arkitekturen e CPU-se ne pika kryesore.',
-    exampleReply: 'AI pergjigjet me koncepte, shpjegim te thjeshtuar dhe drejtim per pyetjet e radhes.',
     formats: 'Formatet',
     use: 'Perdorimi',
     feeling: 'Ndjesia',
@@ -70,13 +61,6 @@ export default function Home() {
   const { locale, setLocale } = useAppLocale()
   const t = useMemo(() => copy[locale], [locale])
   const { user, loading } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading && user) {
-      router.push('/dashboard')
-    }
-  }, [loading, router, user])
 
   const highlights = [
     { title: t.materials, description: t.materialsBody, icon: FileText },
@@ -102,8 +86,9 @@ export default function Home() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl items-center justify-between">
+    <main className="relative min-h-screen overflow-hidden px-4 py-4 sm:px-6 lg:h-screen lg:overflow-hidden lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col lg:h-[calc(100vh-2rem)]">
+        <div className="flex items-center justify-between gap-4">
         <Link href="/" className="inline-flex items-center gap-3 rounded-full px-3 py-2 text-sm font-semibold text-slate-800 dark:text-slate-100">
           <span className="icon-shell h-11 w-11 text-[var(--accent)]">
             <GraduationCap className="h-5 w-5" />
@@ -124,90 +109,91 @@ export default function Home() {
             {t.signup}
           </Link>
         </div>
-      </div>
+        </div>
 
-      <div className="mx-auto mt-10 grid max-w-7xl gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-        <section className="surface animate-fade-in-up p-8 sm:p-10 lg:p-14">
-          <span className="eyebrow">
-            <Sparkles className="h-3.5 w-3.5" />
-            {t.badge}
-          </span>
+        <div className="mt-3 grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[1.38fr_0.62fr] lg:items-stretch lg:overflow-hidden">
+          <section className="surface animate-fade-in-up flex h-full flex-col justify-between p-6 sm:p-7 lg:p-8">
+            <div>
+              <span className="eyebrow">
+                <Sparkles className="h-3.5 w-3.5" />
+                {t.badge}
+              </span>
 
-          <h1 className="page-title mt-6 max-w-3xl">{t.title}</h1>
-          <p className="page-copy mt-6">{t.description}</p>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href="/signup" className="primary-button">
-              {t.start}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/login" className="secondary-button">
-              {t.existing}
-            </Link>
-          </div>
-
-          <div className="mt-10 grid gap-3 md:grid-cols-3">
-            {metrics.map((metric) => (
-              <div key={metric.label} className="surface-muted p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                  {metric.label}
-                </p>
-                <p className="mt-2 text-base font-semibold text-slate-900 dark:text-white">{metric.value}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <aside className="space-y-6">
-          <div className="surface animate-fade-in-up p-6 sm:p-7">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">{t.highlightsTitle}</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.highlightsBody}</p>
-              </div>
-              <div className="status-pill">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                Live
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-4">
-              {highlights.map(({ title, description, icon: Icon }) => (
-                <div key={title} className="surface-muted flex items-start gap-4 p-4">
-                  <div className="icon-shell h-11 w-11 text-[var(--accent)]">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h2>
-                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="surface animate-fade-in-up p-6 sm:p-7">
-            <div className="flex items-center gap-3">
-              <div className="icon-shell h-12 w-12 text-amber-600 dark:text-amber-300">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">{t.matureTitle}</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{t.matureBody}</p>
-              </div>
-            </div>
-
-            <div className="mt-6 rounded-[24px] border border-dashed border-[var(--border)] bg-[var(--highlight)] p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">
-                {t.example}
+              <h1 className="mt-5 max-w-[19ch] text-balance text-[clamp(2.65rem,3.35vw,4rem)] font-semibold tracking-[-0.05em] leading-[0.95] text-slate-900 dark:text-white">
+                {t.title}
+              </h1>
+              <p className="mt-4 max-w-[46rem] text-[15px] leading-7 text-slate-600 dark:text-slate-300">
+                {t.description}
               </p>
-              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                <p className="rounded-2xl bg-white/70 px-4 py-3 dark:bg-slate-900/70">{t.examplePrompt}</p>
-                <p className="rounded-2xl bg-[var(--accent-soft)] px-4 py-3 text-slate-900 dark:text-slate-100">{t.exampleReply}</p>
+            </div>
+
+            <div className="mt-7">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {user ? (
+                  <>
+                    <Link href="/dashboard" className="primary-button">
+                      {t.openDashboard}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link href="/dashboard/exams" className="secondary-button">
+                      {t.existing}
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/signup" className="primary-button">
+                      {t.start}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link href="/login" className="secondary-button">
+                      {t.existing}
+                    </Link>
+                  </>
+                )}
+              </div>
+
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                {metrics.map((metric) => (
+                  <div key={metric.label} className="surface-muted p-3.5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                      {metric.label}
+                    </p>
+                    <p className="mt-1.5 text-base font-semibold text-slate-900 dark:text-white">{metric.value}</p>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        </aside>
+          </section>
+
+          <aside className="min-h-0">
+            <div className="surface animate-fade-in-up flex h-full flex-col p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-base font-semibold text-slate-900 dark:text-white">{t.highlightsTitle}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.highlightsBody}</p>
+                </div>
+                <div className="status-pill">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Live
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                {highlights.map(({ title, description, icon: Icon }) => (
+                  <div key={title} className="surface-muted flex items-start gap-3 p-3.5">
+                    <div className="icon-shell h-9 w-9 text-[var(--accent)]">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h2>
+                      <p className="mt-1 text-[13px] leading-5 text-slate-500 dark:text-slate-400">{description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
   )

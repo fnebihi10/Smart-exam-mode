@@ -26,7 +26,7 @@ export default function AuthShell({
   footer,
 }: AuthShellProps) {
   return (
-    <div className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
+    <div className="relative min-h-screen overflow-hidden px-4 py-3 sm:px-6 lg:h-screen lg:overflow-hidden lg:px-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(15,118,110,0.22),transparent_46%)] dark:bg-[radial-gradient(circle_at_top,rgba(45,212,191,0.16),transparent_42%)]" />
       <div className="pointer-events-none absolute left-[-10rem] top-1/3 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl dark:bg-amber-300/10" />
       <div className="pointer-events-none absolute bottom-[-6rem] right-[-5rem] h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl dark:bg-emerald-300/10" />
@@ -48,19 +48,19 @@ export default function AuthShell({
         </div>
       </div>
 
-      <div className="relative mx-auto mt-8 flex max-w-5xl justify-center">
-        <section className="surface w-full max-w-[34rem] p-6 sm:p-8 lg:p-10">
+      <div className="relative mx-auto mt-3 flex max-w-5xl justify-center lg:mt-4 lg:h-[calc(100vh-6.5rem)] lg:items-start">
+        <section className="surface w-full max-w-[34rem] p-5 sm:p-6 lg:p-7">
           <span className="eyebrow">{badge}</span>
-          <h1 className="mt-6 text-[2rem] font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[2.5rem]">
+          <h1 className="mt-4 text-[1.8rem] font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[2.15rem]">
             {title}
           </h1>
-          <p className="mt-4 text-sm leading-7 text-slate-500 dark:text-slate-400">
+          <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
             {description}
           </p>
 
-          <div className="mt-8">{children}</div>
+          <div className="mt-5">{children}</div>
 
-          {footer ? <div className="mt-7 border-t border-[var(--border)] pt-5">{footer}</div> : null}
+          {footer ? <div className="mt-5 border-t border-[var(--border)] pt-4">{footer}</div> : null}
         </section>
       </div>
     </div>

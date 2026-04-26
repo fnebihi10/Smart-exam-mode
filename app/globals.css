@@ -315,27 +315,55 @@ body::after {
   @apply text-4xl font-semibold tracking-tight text-balance md:text-5xl;
 }
 
+.page-title-compact {
+  @apply text-3xl font-semibold tracking-tight text-balance md:text-4xl xl:text-[3.15rem];
+}
+
 .page-copy {
   @apply max-w-2xl text-sm leading-7 md:text-base;
   color: var(--muted);
 }
 
+.page-copy-compact {
+  @apply max-w-2xl text-sm leading-6 md:text-[15px];
+  color: var(--muted);
+}
+
+.section-title {
+  @apply text-xl font-semibold tracking-tight md:text-2xl;
+}
+
+.section-copy {
+  @apply text-sm leading-6;
+  color: var(--muted);
+}
+
 .primary-button {
   @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50;
-  background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid transparent;
+  background-color: #0f766e;
+  background-image: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
   color: white;
   box-shadow: var(--shadow-sm);
   transition:
     transform var(--transition-fast),
     box-shadow var(--transition-fast),
     background-color var(--transition-fast),
+    border-color var(--transition-fast),
     opacity var(--transition-fast);
   will-change: transform;
 }
 
-.primary-button:hover {
+.primary-button:hover,
+.primary-button:focus-visible {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+  background-color: #0d6b64;
+  background-image: linear-gradient(135deg, #0d6b64 0%, #0fa89a 100%);
+  border-color: transparent;
+  color: white;
 }
 
 .secondary-button {
@@ -355,7 +383,6 @@ body::after {
   background: rgba(15, 23, 42, 0.52);
 }
 
-.primary-button:hover,
 .secondary-button:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
@@ -370,6 +397,12 @@ body::after {
 .secondary-button:active {
   transform: translateY(0);
   box-shadow: var(--shadow-sm);
+}
+
+.primary-button:active {
+  background-color: #0c645d;
+  background-image: linear-gradient(135deg, #0c645d 0%, #0f9f92 100%);
+  color: white;
 }
 
 .primary-button:disabled,

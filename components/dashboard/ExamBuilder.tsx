@@ -32,9 +32,12 @@ import {
   type ExamQuestion,
   type ExamQuestionType,
   type GeneratedExam,
+  type StoredExamAttemptRecord,
   type StoredExamRecord,
 } from '@/types/exams'
 import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
+
+type ExamsView = 'builder' | 'library' | 'results'
 
 const copy = {
   en: {
@@ -143,6 +146,30 @@ const copy = {
     generateStep: 'Generate',
     editStep: 'Edit',
     publishStep: 'Publish',
+    builderTab: 'Builder',
+    libraryTab: 'Library',
+    resultsTab: 'Results',
+    libraryTitle: 'Published exam library',
+    libraryBody: 'Start, review, or remove published exams without scrolling through the builder.',
+    resultsTitle: 'Exam results',
+    resultsBody: 'Review submitted attempts and filter them by exam.',
+    noAttempts: 'No exam attempts yet.',
+    attemptScore: 'Score',
+    attemptStatus: 'Status',
+    attemptViolations: 'Violations',
+    attemptSubmitted: 'Submitted',
+    answersSubmitted: 'Answers',
+    deleteExam: 'Delete exam',
+    deleteExamConfirm: 'Do you want to delete this exam?',
+    deleteSuccess: 'Exam deleted successfully.',
+    deleteError: 'Deleting the exam failed.',
+    deleteResult: 'Delete result',
+    deleteResultConfirm: 'Do you want to delete this result?',
+    deleteResultSuccess: 'Result deleted successfully.',
+    deleteResultError: 'Deleting the result failed.',
+    viewResults: 'View results',
+    filterAll: 'All exams',
+    openBuilder: 'Open builder',
   },
   sq: {
     back: 'Kthehu te dashboard',
@@ -251,6 +278,30 @@ const copy = {
     generateStep: 'Gjenero',
     editStep: 'Modifiko',
     publishStep: 'Publiko',
+    builderTab: 'Krijuesi',
+    libraryTab: 'Biblioteka',
+    resultsTab: 'Rezultatet',
+    libraryTitle: 'Biblioteka e provimeve',
+    libraryBody: 'Nis, rishiko ose fshi provimet e publikuara pa kaluar neper te gjithe krijuesin.',
+    resultsTitle: 'Rezultatet e provimit',
+    resultsBody: 'Shiko tentativat e derguara dhe filtroji sipas provimit.',
+    noAttempts: 'Nuk ka tentativa ende.',
+    attemptScore: 'Rezultati',
+    attemptStatus: 'Statusi',
+    attemptViolations: 'Shkelje',
+    attemptSubmitted: 'Derguar',
+    answersSubmitted: 'Pergjigje',
+    deleteExam: 'Fshi provimin',
+    deleteExamConfirm: 'Deshiron ta fshish kete provim?',
+    deleteSuccess: 'Provimi u fshi me sukses.',
+    deleteError: 'Fshirja e provimit deshtoi.',
+    deleteResult: 'Fshi rezultatin',
+    deleteResultConfirm: 'Deshiron ta fshish kete rezultat?',
+    deleteResultSuccess: 'Rezultati u fshi me sukses.',
+    deleteResultError: 'Fshirja e rezultatit deshtoi.',
+    viewResults: 'Shiko rezultatet',
+    filterAll: 'Te gjitha',
+    openBuilder: 'Hap krijuesin',
   },
 } as const
 
@@ -356,6 +407,19 @@ const isMissingExamsTableError = (message: string) => {
   )
 }
 
+const isMissingExamAttemptsTableError = (message: string) => {
+  const normalized = message.toLowerCase()
+
+  return (
+    normalized.includes('exam_attempts') &&
+    (
+      normalized.includes('does not exist') ||
+      normalized.includes('schema cache') ||
+      normalized.includes('could not find the table')
+    )
+  )
+}
+
 const recalculateDraft = (exam: GeneratedExam): GeneratedExam => ({
   ...exam,
   totalPoints: exam.questions.reduce((sum, question) => sum + question.points, 0),
@@ -390,6 +454,13 @@ export default function ExamBuilder() {
   const [contextAvailable, setContextAvailable] = useState(true)
   const [requiresExamTableSetup, setRequiresExamTableSetup] = useState(false)
   const [publishedThisSession, setPublishedThisSession] = useState(false)
+  const [activeView, setActiveView] = useState<ExamsView>('library')
+  const [attempts, setAttempts] = useState<StoredExamAttemptRecord[]>([])
+  const [loadingAttempts, setLoadingAttempts] = useState(true)
+  const [attemptsError, setAttemptsError] = useState('')
+  const [deletingExamId, setDeletingExamId] = useState<string | null>(null)
+  const [deletingAttemptId, setDeletingAttemptId] = useState<string | null>(null)
+  const [resultsExamFilter, setResultsExamFilter] = useState<string>('all')
 
   useEffect(() => {
     setConfig((current) => ({ ...current, language: locale }))
@@ -418,6 +489,12 @@ export default function ExamBuilder() {
     { key: 'generate', label: t.generateStep },
     { key: 'edit', label: t.editStep },
     { key: 'publish', label: t.publishStep },
+  ]
+
+  const viewTabs: Array<{ key: ExamsView; label: string }> = [
+    { key: 'library', label: t.libraryTab },
+    { key: 'builder', label: t.builderTab },
+    { key: 'results', label: t.resultsTab },
   ]
 
   const fetchPublishedExams = useCallback(async () => {
@@ -463,6 +540,48 @@ export default function ExamBuilder() {
   useEffect(() => {
     void fetchPublishedExams()
   }, [fetchPublishedExams])
+
+  const fetchAttempts = useCallback(async () => {
+    if (!user) {
+      setAttempts([])
+      setLoadingAttempts(false)
+      return
+    }
+
+    setLoadingAttempts(true)
+    setAttemptsError('')
+
+    try {
+      const { data, error } = await supabase
+        .from('exam_attempts')
+        .select(
+          'id, exam_id, user_id, status, violations_count, objective_score, objective_max_score, attempt_payload, created_at'
+        )
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      setAttempts((data as StoredExamAttemptRecord[]) || [])
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, t.loadError)
+
+      if (isMissingExamAttemptsTableError(message)) {
+        setAttempts([])
+        return
+      }
+
+      setAttemptsError(message)
+    } finally {
+      setLoadingAttempts(false)
+    }
+  }, [supabase, t.loadError, user])
+
+  useEffect(() => {
+    void fetchAttempts()
+  }, [fetchAttempts])
 
   const fetchLectureOptions = useCallback(async () => {
     if (!user) {
@@ -629,6 +748,7 @@ export default function ExamBuilder() {
       setDraft(data.exam as GeneratedExam)
       setContextAvailable(Boolean(data.contextAvailable))
       setSuccess(Boolean(data.contextAvailable) ? t.draftReady : t.noContext)
+      setActiveView('builder')
     } catch (err: unknown) {
       setError(getErrorMessage(err, t.requestFailed))
     } finally {
@@ -680,6 +800,7 @@ export default function ExamBuilder() {
       setRequiresExamTableSetup(false)
       setPublishedThisSession(true)
       setSuccess(t.publishSuccess)
+      setActiveView('library')
     } catch (err: unknown) {
       const message = getErrorMessage(err, t.publishError)
 
@@ -700,11 +821,96 @@ export default function ExamBuilder() {
     }
   }
 
+  const handleDeleteExam = async (exam: StoredExamRecord) => {
+    if (!user) {
+      setError(t.sessionExpired)
+      return
+    }
+
+    if (!window.confirm(t.deleteExamConfirm)) {
+      return
+    }
+
+    setDeletingExamId(exam.id)
+    setError('')
+    setSuccess('')
+
+    try {
+      const { error } = await supabase
+        .from('exams')
+        .delete()
+        .eq('id', exam.id)
+        .eq('user_id', user.id)
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      setPublishedExams((current) => current.filter((entry) => entry.id !== exam.id))
+      setAttempts((current) => current.filter((entry) => entry.exam_id !== exam.id))
+      if (resultsExamFilter === exam.id) {
+        setResultsExamFilter('all')
+      }
+      setSuccess(t.deleteSuccess)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t.deleteError))
+    } finally {
+      setDeletingExamId(null)
+    }
+  }
+
+  const handleDeleteAttempt = async (attempt: StoredExamAttemptRecord) => {
+    if (!user) {
+      setError(t.sessionExpired)
+      return
+    }
+
+    if (!window.confirm(t.deleteResultConfirm)) {
+      return
+    }
+
+    setDeletingAttemptId(attempt.id)
+    setError('')
+    setSuccess('')
+
+    try {
+      const { error } = await supabase
+        .from('exam_attempts')
+        .delete()
+        .eq('id', attempt.id)
+        .eq('user_id', user.id)
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      setAttempts((current) => current.filter((entry) => entry.id !== attempt.id))
+      setSuccess(t.deleteResultSuccess)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t.deleteResultError))
+    } finally {
+      setDeletingAttemptId(null)
+    }
+  }
+
   const formatDate = (date: string) =>
     new Date(date).toLocaleString(locale === 'sq' ? 'sq-AL' : 'en-US', {
       dateStyle: 'medium',
       timeStyle: 'short',
     })
+
+  const publishedExamMap = useMemo(
+    () => new Map(publishedExams.map((exam) => [exam.id, exam])),
+    [publishedExams]
+  )
+
+  const filteredAttempts = useMemo(
+    () =>
+      resultsExamFilter === 'all'
+        ? attempts
+        : attempts.filter((attempt) => attempt.exam_id === resultsExamFilter),
+    [attempts, resultsExamFilter]
+  )
 
   if (loading) {
     return (
@@ -786,6 +992,46 @@ export default function ExamBuilder() {
         </div>
       </section>
 
+      <section className="surface animate-fadeInScale p-4 sm:p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+              {activeView === 'builder'
+                ? t.setupTitle
+                : activeView === 'library'
+                  ? t.libraryTitle
+                  : t.resultsTitle}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {activeView === 'builder'
+                ? t.setupBody
+                : activeView === 'library'
+                  ? t.libraryBody
+                  : t.resultsBody}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {viewTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveView(tab.key)}
+                className={`secondary-button px-4 py-2 ${
+                  activeView === tab.key
+                    ? 'border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                    : ''
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {activeView === 'builder' && (
+        <>
       <section className="surface animate-fadeInScale p-5 sm:p-6">
         <ol className="grid gap-4 md:grid-cols-4">
           {steps.map((step, index) => {
@@ -1757,7 +2003,10 @@ export default function ExamBuilder() {
           </div>
         </section>
       )}
+        </>
+      )}
 
+      {activeView === 'library' && (
       <section className="surface animate-fadeInScale overflow-hidden">
         <div className="card-header-divider px-6 py-5">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
@@ -1777,8 +2026,15 @@ export default function ExamBuilder() {
             {t.setupNotice}
           </div>
         ) : publishedExams.length === 0 ? (
-          <div className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
-            {t.emptySaved}
+          <div className="p-10 text-center">
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t.emptySaved}</p>
+            <button
+              type="button"
+              onClick={() => setActiveView('builder')}
+              className="primary-button mt-5"
+            >
+              {t.openBuilder}
+            </button>
           </div>
         ) : (
           <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
@@ -1820,15 +2076,179 @@ export default function ExamBuilder() {
                   <span>{formatDate(exam.created_at)}</span>
                 </div>
 
-                <Link href={`/exam/${exam.id}`} className="primary-button mt-5 w-full justify-center hover:animate-pulse-ring">
-                  <Play className="h-4 w-4" />
-                  {t.startExam}
-                </Link>
+                <div className="mt-5 grid gap-2">
+                  <Link href={`/exam/${exam.id}`} className="primary-button w-full justify-center hover:animate-pulse-ring">
+                    <Play className="h-4 w-4" />
+                    {t.startExam}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResultsExamFilter(exam.id)
+                      setActiveView('results')
+                    }}
+                    className="secondary-button w-full justify-center"
+                  >
+                    <Eye className="h-4 w-4" />
+                    {t.viewResults}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteExam(exam)}
+                    disabled={deletingExamId === exam.id}
+                    data-destructive="true"
+                    className="secondary-button w-full justify-center text-rose-600 dark:text-rose-300"
+                  >
+                    {deletingExamId === exam.id ? (
+                      <span className="spinner-arc h-4 w-4" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    {t.deleteExam}
+                  </button>
+                </div>
               </article>
             ))}
           </div>
         )}
       </section>
+      )}
+
+      {activeView === 'results' && (
+        <section className="surface animate-fadeInScale overflow-hidden">
+          <div className="card-header-divider px-6 py-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                  {t.resultsTitle}
+                </h2>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  {t.resultsBody}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setResultsExamFilter('all')}
+                  className={`secondary-button px-4 py-2 ${
+                    resultsExamFilter === 'all'
+                      ? 'border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                      : ''
+                  }`}
+                >
+                  {t.filterAll}
+                </button>
+                {publishedExams.map((exam) => (
+                  <button
+                    key={`filter-${exam.id}`}
+                    type="button"
+                    onClick={() => setResultsExamFilter(exam.id)}
+                    className={`secondary-button px-4 py-2 ${
+                      resultsExamFilter === exam.id
+                        ? 'border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                        : ''
+                    }`}
+                  >
+                    {exam.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {loadingAttempts ? (
+            <div className="flex min-h-56 items-center justify-center p-6">
+              <span className="spinner-arc h-8 w-8" />
+            </div>
+          ) : attemptsError ? (
+            <div className="p-10 text-center text-sm text-rose-600 dark:text-rose-300">
+              {attemptsError}
+            </div>
+          ) : filteredAttempts.length === 0 ? (
+            <div className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
+              {t.noAttempts}
+            </div>
+          ) : (
+            <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
+              {filteredAttempts.map((attempt) => {
+                const exam = publishedExamMap.get(attempt.exam_id)
+
+                return (
+                  <article key={attempt.id} className="surface-muted p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                          {exam?.title || attempt.exam_id}
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                          {t.attemptSubmitted}: {formatDate(attempt.created_at)}
+                        </p>
+                      </div>
+                      <span className="status-pill">
+                        {attempt.status}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                          {t.attemptScore}
+                        </p>
+                        <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                          {attempt.objective_score}/{attempt.objective_max_score}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                          {t.attemptViolations}
+                        </p>
+                        <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                          {attempt.violations_count}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                          {t.answersSubmitted}
+                        </p>
+                        <p className="mt-2 text-base font-semibold text-slate-900 dark:text-white">
+                          {attempt.attempt_payload.answeredCount}/{attempt.attempt_payload.totalQuestions}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                          {t.attemptStatus}
+                        </p>
+                        <p className="mt-2 text-base font-semibold text-slate-900 dark:text-white">
+                          {attempt.status}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteAttempt(attempt)}
+                      disabled={deletingAttemptId === attempt.id}
+                      data-destructive="true"
+                      className="secondary-button mt-4 w-full justify-center text-rose-600 dark:text-rose-300"
+                    >
+                      {deletingAttemptId === attempt.id ? (
+                        <span className="spinner-arc h-4 w-4" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      {t.deleteResult}
+                    </button>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }

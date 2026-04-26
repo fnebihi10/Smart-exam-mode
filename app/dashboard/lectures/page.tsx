@@ -31,28 +31,28 @@ export default function LecturesPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 pb-4">
-      <section className="surface animate-fade-in-up p-6 sm:p-8">
-        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+      <section className="surface animate-fade-in-up p-5 sm:p-6">
+        <div className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
           <div>
             <span className="eyebrow">{t.badge}</span>
-            <h1 className="page-title mt-5 text-3xl md:text-4xl">{t.title}</h1>
-            <p className="page-copy mt-4">{t.description}</p>
+            <h1 className="page-title-compact mt-4 max-w-3xl">{t.title}</h1>
+            <p className="page-copy-compact mt-3">{t.description}</p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="surface-muted p-4">
-              <div className="icon-shell h-11 w-11 text-[var(--accent)]">
+              <div className="icon-shell h-10 w-10 text-[var(--accent)]">
                 <FileText className="h-4 w-4" />
               </div>
-              <p className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">{t.libraryTitle}</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{t.libraryTitle}</p>
               <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.libraryBody}</p>
             </div>
 
             <div className="surface-muted p-4">
-              <div className="icon-shell h-11 w-11 text-amber-600 dark:text-amber-300">
+              <div className="icon-shell h-10 w-10 text-amber-600 dark:text-amber-300">
                 <Sparkles className="h-4 w-4" />
               </div>
-              <p className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">{t.aiTitle}</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{t.aiTitle}</p>
               <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.aiBody}</p>
             </div>
           </div>

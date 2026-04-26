@@ -261,12 +261,12 @@ export default function MaterialsCard() {
   }
 
   return (
-    <section className="surface animate-fadeInScale p-6 sm:p-7">
+    <section className="surface animate-fadeInScale p-5 sm:p-6">
       <div className="flex flex-col gap-5">
         <div className="card-header-divider flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <span className="eyebrow">{t.badge}</span>
-            <h2 className="mt-4 text-2xl font-semibold text-slate-900 dark:text-white">{t.title}</h2>
+            <h2 className="mt-3 text-xl font-semibold text-slate-900 dark:text-white">{t.title}</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.description}</p>
           </div>
 
