@@ -6,11 +6,9 @@ import {
   ArrowLeft,
   CheckCircle2,
   Eye,
-  FileCheck2,
   FileText,
   Play,
   RefreshCcw,
-  Sparkles,
   Trash2,
   WandSparkles,
 } from 'lucide-react'
@@ -26,7 +24,6 @@ import {
   EXAM_CATEGORY_META,
   type ExamDifficulty,
   type ExamGenerationRequest,
-  type ExamQuestion,
   type ExamQuestionType,
   type GeneratedExam,
   type StoredExamAttemptRecord,
@@ -40,12 +37,12 @@ const copy = {
   en: {
     back: 'Back to dashboard',
     badge: 'High-end AI exams',
-    title: 'Design the exam structure first, then let AI generate the draft.',
+    title: 'Choose the exam structure, then generate a ready-to-start exam.',
     description:
-      'Control how many questions belong to each category, define the points for every type, preview the whole exam, edit anything you want, and only then publish it.',
+      'Control the question mix, points, source material, and difficulty. The AI creates and publishes the exam directly, so students can start right away.',
     setupTitle: 'Exam setup',
     setupBody:
-      'A strong draft starts with a clear structure. Use 14 to 15 total questions for a balanced practice exam, or tune it to your style.',
+      'A strong exam starts with a clear structure. Use 14 to 15 total questions for a balanced practice exam, or tune it to your style.',
     examTitle: 'Exam title',
     topicFocus: 'Topic focus',
     topicPlaceholder:
@@ -77,18 +74,11 @@ const copy = {
     totalDuration: 'Suggested duration',
     recommendation: '14 to 15 questions is the sweet spot for this format.',
     recommendationOk: 'This setup is right in the recommended range.',
-    generate: 'Generate exam draft',
-    generating: 'Generating draft...',
-    draftTitle: 'Draft preview',
-    draftBody:
-      'Review the full draft, rewrite questions, adjust answers, or remove anything before publishing.',
-    draftReady: 'Draft ready for review.',
+    generate: 'Generate ready exam',
+    generating: 'Generating exam...',
+    generatedReady: 'Exam generated and ready to start.',
     noContext:
-      'No uploaded lecture files were found, so the draft was generated from your topic focus only.',
-    publish: 'Publish exam',
-    publishing: 'Publishing...',
-    publishSuccess: 'Exam published successfully.',
-    publishError: 'Publishing failed. Make sure the exams table exists in Supabase.',
+      'Exam generated from your topic focus only and ready to start.',
     publishSetupMissing:
       'Publishing is not ready yet because the Supabase exams table has not been created.',
     savedTitle: 'Published exams',
@@ -98,39 +88,14 @@ const copy = {
     setupNotice:
       'Published exams are not available yet. Run the new exams SQL in Supabase to enable saving and loading.',
     setupHint:
-      'You can still generate and edit AI exam drafts right now. Publishing will start working after the database table is added.',
-    editExam: 'Exam details',
-    editQuestions: 'Questions',
-    instructions: 'Instructions',
-    instructionPlaceholder: 'Instruction',
-    addInstruction: 'Add instruction',
-    removeQuestion: 'Remove question',
-    prompt: 'Prompt',
-    correctAnswer: 'Correct answer',
-    acceptableAnswers: 'Accepted answers',
-    acceptableAnswersHint: 'Separate short-answer variants with commas.',
-    explanation: 'Answer explanation',
-    sampleAnswer: 'Sample answer',
-    gradingNotes: 'Grading notes',
-    gradingNotesHint: 'Write one grading note per line.',
-    option: 'Option',
-    addQuestion: 'Add manual question',
-    mcq: 'Add multiple choice',
-    fill: 'Add fill-in',
-    open: 'Add open-ended',
-    questionLabel: 'Question',
+      'Exam generation needs the database table because generated exams are published immediately.',
     publishedOn: 'Published',
     startExam: 'Start exam',
-    launchExam: 'Launch live mode',
-    statusDraft: 'Draft',
     statusPublished: 'Published',
     mixed: 'Mixed',
     easy: 'Easy',
     medium: 'Medium',
     hard: 'Hard',
-    sourceReady: 'Lecture context connected',
-    sourceFallback: 'Topic-only generation',
-    descriptionLabel: 'Description',
     sessionExpired: 'Your session expired. Please sign in again.',
     titleRequired: 'Please add an exam title before generating.',
     titleTooLong: 'The exam title is too long. Keep it under 120 characters.',
@@ -141,8 +106,7 @@ const copy = {
     signIn: 'Sign in',
     configureStep: 'Configure',
     generateStep: 'Generate',
-    editStep: 'Edit',
-    publishStep: 'Publish',
+    publishStep: 'Start',
     builderTab: 'Builder',
     libraryTab: 'Library',
     resultsTab: 'Results',
@@ -171,12 +135,12 @@ const copy = {
   sq: {
     back: 'Kthehu te dashboard',
     badge: 'Provime AI me nivel te larte',
-    title: 'Percakto strukturen e provimit fillimisht, pastaj lejo AI te krijoje draftin.',
+    title: 'Zgjidh strukturen e provimit, pastaj gjenero nje provim gati per nisje.',
     description:
-      'Kontrollo sa pyetje i perkasin seciles kategori, cakto piket per cdo lloj, shiko provimin e plote, ndrysho cfare te duash dhe publikoje vetem kur je gati.',
+      'Kontrollo llojet e pyetjeve, piket, burimin dhe veshtiresine. AI krijon dhe publikon provimin direkt, pa hap modifikimi.',
     setupTitle: 'Konfigurimi i provimit',
     setupBody:
-      'Nje draft i forte nis me strukture te qarte. Perdori 14 deri 15 pyetje per nje provim praktik te balancuar, ose pershtate si te duash.',
+      'Nje provim i forte nis me strukture te qarte. Perdori 14 deri 15 pyetje per nje provim praktik te balancuar, ose pershtate si te duash.',
     examTitle: 'Titulli i provimit',
     topicFocus: 'Fokusi i temes',
     topicPlaceholder:
@@ -208,19 +172,11 @@ const copy = {
     totalDuration: 'Kohezgjatja e sugjeruar',
     recommendation: '14 deri 15 pyetje jane balanca me e mire per kete format.',
     recommendationOk: 'Ky konfigurim eshte pikerisht ne diapazonin e rekomanduar.',
-    generate: 'Gjenero draftin e provimit',
-    generating: 'Po gjenerohet drafti...',
-    draftTitle: 'Parashikimi i draftit',
-    draftBody:
-      'Shiko draftin e plote, ndrysho pyetjet, pergjigjet ose hiq cdo gje para publikimit.',
-    draftReady: 'Drafti eshte gati per rishikim.',
+    generate: 'Gjenero provim gati',
+    generating: 'Po gjenerohet provimi...',
+    generatedReady: 'Provimi u gjenerua dhe eshte gati per nisje.',
     noContext:
-      'Nuk u gjeten materiale te ngarkuara, ndaj drafti u krijua vetem nga fokusi i temes.',
-    publish: 'Publiko provimin',
-    publishing: 'Po publikohet...',
-    publishSuccess: 'Provimi u publikua me sukses.',
-    publishError:
-      'Publikimi deshtoi. Sigurohu qe tabela exams ekziston ne Supabase.',
+      'Provimi u gjenerua vetem nga fokusi i temes dhe eshte gati per nisje.',
     publishSetupMissing:
       'Publikimi nuk eshte gati ende sepse tabela exams ne Supabase nuk eshte krijuar.',
     savedTitle: 'Provimet e publikuara',
@@ -230,39 +186,14 @@ const copy = {
     setupNotice:
       'Provimet e publikuara nuk jane ende aktive. Ekzekuto SQL-ne e re te exams ne Supabase per te aktivizuar ruajtjen dhe ngarkimin.',
     setupHint:
-      'Mund te gjenerosh dhe modifikosh draftet e provimit tani. Publikimi do te funksionoje pasi te shtohet tabela ne databaze.',
-    editExam: 'Detajet e provimit',
-    editQuestions: 'Pyetjet',
-    instructions: 'Udhezimet',
-    instructionPlaceholder: 'Udhezim',
-    addInstruction: 'Shto udhezim',
-    removeQuestion: 'Hiq pyetjen',
-    prompt: 'Pyetja',
-    correctAnswer: 'Pergjigjja e sakte',
-    acceptableAnswers: 'Pergjigje te pranueshme',
-    acceptableAnswersHint: 'Ndaji variantet e shkurtra me presje.',
-    explanation: 'Shpjegimi i pergjigjes',
-    sampleAnswer: 'Pergjigje model',
-    gradingNotes: 'Shenime vleresimi',
-    gradingNotesHint: 'Shkruaj nje shenim vleresimi per rresht.',
-    option: 'Opsioni',
-    addQuestion: 'Shto pyetje manualisht',
-    mcq: 'Shto alternative',
-    fill: 'Shto plotesim',
-    open: 'Shto te hapur',
-    questionLabel: 'Pyetja',
+      'Gjenerimi ka nevoje per tabelen e databazes sepse provimet publikohen direkt.',
     publishedOn: 'Publikuar',
     startExam: 'Fillo provimin',
-    launchExam: 'Hap modalitetin live',
-    statusDraft: 'Draft',
     statusPublished: 'Publikuar',
     mixed: 'E perzier',
     easy: 'E lehte',
     medium: 'Mesatare',
     hard: 'E veshtire',
-    sourceReady: 'Konteksti i leksioneve i lidhur',
-    sourceFallback: 'Gjenerim vetem nga tema',
-    descriptionLabel: 'Pershkrimi',
     sessionExpired: 'Sesioni ka skaduar. Ju lutem kyquni perseri.',
     titleRequired: 'Ju lutem vendosni nje titull provimi para gjenerimit.',
     titleTooLong: 'Titulli i provimit eshte shume i gjate. Mbajeni nen 120 karaktere.',
@@ -273,8 +204,7 @@ const copy = {
     signIn: 'Kycu',
     configureStep: 'Konfiguro',
     generateStep: 'Gjenero',
-    editStep: 'Modifiko',
-    publishStep: 'Publiko',
+    publishStep: 'Nis',
     builderTab: 'Krijuesi',
     libraryTab: 'Biblioteka',
     resultsTab: 'Rezultatet',
@@ -308,8 +238,8 @@ const MAX_TOPIC_FOCUS_CHARS = 1200
 const createInitialConfig = (locale: 'en' | 'sq'): ExamGenerationRequest => ({
   title:
     locale === 'sq'
-      ? 'Draft provimi i gjeneruar nga AI'
-      : 'AI-generated exam draft',
+      ? 'Provim i gjeneruar nga AI'
+      : 'AI-generated exam',
   topicFocus: '',
   difficulty: 'mixed',
   language: locale,
@@ -317,53 +247,6 @@ const createInitialConfig = (locale: 'en' | 'sq'): ExamGenerationRequest => ({
   selectedLectureIds: [],
   categories: DEFAULT_EXAM_SETTINGS.map((category) => ({ ...category })),
 })
-
-const createManualQuestion = (
-  type: ExamQuestionType,
-  locale: 'en' | 'sq'
-): ExamQuestion => {
-  if (type === 'fill_in_blank') {
-    return {
-      id: crypto.randomUUID(),
-      type,
-      prompt:
-        locale === 'sq'
-          ? 'Pyetje e re: ploteso pjesen qe mungon.'
-          : 'New question: fill in the missing word or phrase.',
-      points: 3,
-      correctAnswer: '',
-      acceptableAnswers: [],
-      explanation: '',
-    }
-  }
-
-  if (type === 'open_ended') {
-    return {
-      id: crypto.randomUUID(),
-      type,
-      prompt:
-        locale === 'sq'
-          ? 'Pyetje e re: jep nje pergjigje te zhvilluar.'
-          : 'New question: write a developed response.',
-      points: 8,
-      sampleAnswer: '',
-      gradingNotes: [],
-    }
-  }
-
-  return {
-    id: crypto.randomUUID(),
-    type,
-    prompt:
-      locale === 'sq'
-        ? 'Pyetje e re me alternativa.'
-        : 'New multiple choice question.',
-    points: 2,
-    options: ['Option A', 'Option B', 'Option C', 'Option D'],
-    correctAnswer: 'Option A',
-    explanation: '',
-  }
-}
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error && error.message) {
@@ -417,11 +300,6 @@ const isMissingExamAttemptsTableError = (message: string) => {
   )
 }
 
-const recalculateDraft = (exam: GeneratedExam): GeneratedExam => ({
-  ...exam,
-  totalPoints: exam.questions.reduce((sum, question) => sum + question.points, 0),
-})
-
 const difficultyOptions: ExamDifficulty[] = ['mixed', 'easy', 'medium', 'hard']
 
 const questionAccentClasses: Record<ExamQuestionType, string> = {
@@ -438,17 +316,14 @@ export default function ExamBuilder() {
   const [config, setConfig] = useState<ExamGenerationRequest>(() =>
     createInitialConfig(locale)
   )
-  const [draft, setDraft] = useState<GeneratedExam | null>(null)
   const [publishedExams, setPublishedExams] = useState<StoredExamRecord[]>([])
   const [lectureOptions, setLectureOptions] = useState<LectureFileListItem[]>([])
   const [loadingLectures, setLoadingLectures] = useState(true)
   const [loadingSaved, setLoadingSaved] = useState(true)
   const [generating, setGenerating] = useState(false)
-  const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [lectureLoadError, setLectureLoadError] = useState('')
-  const [contextAvailable, setContextAvailable] = useState(true)
   const [requiresExamTableSetup, setRequiresExamTableSetup] = useState(false)
   const [publishedThisSession, setPublishedThisSession] = useState(false)
   const [activeView, setActiveView] = useState<ExamsView>('library')
@@ -479,13 +354,12 @@ export default function ExamBuilder() {
     [config.categories]
   )
 
-  const currentStep = publishing || publishedThisSession ? 4 : draft ? 3 : generating ? 2 : 1
+  const currentStep = publishedThisSession ? 3 : generating ? 2 : 1
 
   const steps = [
     { key: 'configure', label: t.configureStep },
     { key: 'generate', label: t.generateStep },
-    { key: 'edit', label: t.editStep },
-    { key: 'publish', label: t.publishStep },
+    { key: 'start', label: t.publishStep },
   ]
 
   const viewTabs: Array<{ key: ExamsView; label: string }> = [
@@ -619,13 +493,6 @@ export default function ExamBuilder() {
     void fetchLectureOptions()
   }, [fetchLectureOptions])
 
-  const applyDraftUpdate = (updater: (current: GeneratedExam) => GeneratedExam) => {
-    setDraft((current) => {
-      if (!current) return current
-      return recalculateDraft(updater(current))
-    })
-  }
-
   const updateCategory = (
     type: ExamQuestionType,
     field: 'count' | 'points',
@@ -643,18 +510,6 @@ export default function ExamBuilder() {
                   : Math.max(1, Math.min(100, value)),
             }
           : category
-      ),
-    }))
-  }
-
-  const updateQuestion = (
-    questionId: string,
-    updater: (question: ExamQuestion) => ExamQuestion
-  ) => {
-    applyDraftUpdate((current) => ({
-      ...current,
-      questions: current.questions.map((question) =>
-        question.id === questionId ? updater(question) : question
       ),
     }))
   }
@@ -678,6 +533,44 @@ export default function ExamBuilder() {
     } catch {
       return null
     }
+  }
+
+  const publishGeneratedExam = async (exam: GeneratedExam) => {
+    if (!user) {
+      throw new Error(t.sessionExpired)
+    }
+
+    const payload: GeneratedExam = {
+      ...exam,
+      totalPoints: exam.questions.reduce((sum, question) => sum + question.points, 0),
+    }
+
+    const { data, error } = await supabase
+      .from('exams')
+      .insert([
+        {
+          user_id: user.id,
+          title: payload.title,
+          description: payload.description,
+          topic_focus: payload.topicFocus,
+          difficulty: payload.difficulty,
+          question_count: payload.questions.length,
+          total_points: payload.totalPoints,
+          estimated_duration_minutes: payload.estimatedDurationMinutes,
+          status: 'published',
+          exam_payload: payload,
+        },
+      ])
+      .select(
+        'id, title, description, topic_focus, difficulty, question_count, total_points, estimated_duration_minutes, status, exam_payload, created_at'
+      )
+      .single()
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    return data as StoredExamRecord
   }
 
   const handleGenerate = async (event: React.FormEvent) => {
@@ -742,64 +635,14 @@ export default function ExamBuilder() {
         throw new Error(t.requestFailed)
       }
 
-      setDraft(data.exam as GeneratedExam)
-      setContextAvailable(Boolean(data.contextAvailable))
-      setSuccess(Boolean(data.contextAvailable) ? t.draftReady : t.noContext)
-      setActiveView('builder')
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, t.requestFailed))
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  const handlePublish = async () => {
-    if (!draft) return
-    if (publishing) return
-    if (!user) {
-      setError(t.sessionExpired)
-      return
-    }
-
-    setPublishing(true)
-    setError('')
-    setSuccess('')
-
-    try {
-      const payload = recalculateDraft(draft)
-
-      const { data, error } = await supabase
-        .from('exams')
-        .insert([
-          {
-            user_id: user.id,
-            title: payload.title,
-            description: payload.description,
-            topic_focus: payload.topicFocus,
-            difficulty: payload.difficulty,
-            question_count: payload.questions.length,
-            total_points: payload.totalPoints,
-            estimated_duration_minutes: payload.estimatedDurationMinutes,
-            status: 'published',
-            exam_payload: payload,
-          },
-        ])
-        .select(
-          'id, title, description, topic_focus, difficulty, question_count, total_points, estimated_duration_minutes, status, exam_payload, created_at'
-        )
-        .single()
-
-      if (error) {
-        throw new Error(error.message)
-      }
-
-      setPublishedExams((current) => [data as StoredExamRecord, ...current])
+      const publishedExam = await publishGeneratedExam(data.exam as GeneratedExam)
+      setPublishedExams((current) => [publishedExam, ...current])
       setRequiresExamTableSetup(false)
       setPublishedThisSession(true)
-      setSuccess(t.publishSuccess)
+      setSuccess(Boolean(data.contextAvailable) ? t.generatedReady : t.noContext)
       setActiveView('library')
     } catch (err: unknown) {
-      const message = getErrorMessage(err, t.publishError)
+      const message = getErrorMessage(err, t.requestFailed)
 
       if (isAuthExpiredError(message)) {
         setError(t.sessionExpired)
@@ -814,7 +657,7 @@ export default function ExamBuilder() {
 
       setError(message)
     } finally {
-      setPublishing(false)
+      setGenerating(false)
     }
   }
 
@@ -985,13 +828,32 @@ export default function ExamBuilder() {
         </div>
       </section>
 
+      {error && (
+        <div className="surface-muted animate-fadeInUp border-rose-200/70 bg-rose-50/80 p-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="surface-muted animate-success-pop border-emerald-200/70 bg-emerald-50/80 p-4 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300">
+          {success}
+        </div>
+      )}
+
+      {requiresExamTableSetup && (
+        <div className="surface-muted animate-fadeInUp border-amber-200/70 bg-amber-50/80 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
+          <p>{t.setupNotice}</p>
+          <p className="mt-2 text-xs text-amber-700/90 dark:text-amber-200/80">{t.setupHint}</p>
+        </div>
+      )}
+
       {activeView === 'builder' && (
         <>
       <section className="surface animate-fadeInScale p-5 sm:p-6">
-        <ol className="grid gap-4 md:grid-cols-4">
+        <ol className="grid gap-4 md:grid-cols-3">
           {steps.map((step, index) => {
             const stepNumber = index + 1
-            const completed = publishedThisSession ? stepNumber <= 4 : stepNumber < currentStep
+            const completed = publishedThisSession ? stepNumber <= steps.length : stepNumber < currentStep
             const current = stepNumber === currentStep && !publishedThisSession
 
             return (
@@ -1026,25 +888,6 @@ export default function ExamBuilder() {
           })}
         </ol>
       </section>
-
-      {error && (
-        <div className="surface-muted animate-fadeInUp border-rose-200/70 bg-rose-50/80 p-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="surface-muted animate-success-pop border-emerald-200/70 bg-emerald-50/80 p-4 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300">
-          {success}
-        </div>
-      )}
-
-      {requiresExamTableSetup && (
-        <div className="surface-muted animate-fadeInUp border-amber-200/70 bg-amber-50/80 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
-          <p>{t.setupNotice}</p>
-          <p className="mt-2 text-xs text-amber-700/90 dark:text-amber-200/80">{t.setupHint}</p>
-        </div>
-      )}
 
       <form
         onSubmit={handleGenerate}
@@ -1387,577 +1230,6 @@ export default function ExamBuilder() {
         </section>
       </form>
 
-      {draft && (
-        <section className="surface animate-fadeInScale overflow-hidden">
-          <div className="card-header-divider px-6 py-5 sm:px-7">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-                    {t.draftTitle}
-                  </h2>
-                  <span className="status-pill">
-                    <FileCheck2 className="h-3.5 w-3.5" />
-                    {t.statusDraft}
-                  </span>
-                  <span className="status-pill">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    {contextAvailable ? t.sourceReady : t.sourceFallback}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                  {t.draftBody}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handlePublish}
-                disabled={publishing}
-                className={`primary-button justify-center shadow-depth-md ${publishing ? 'button-shimmer' : ''}`}
-              >
-                {publishing ? (
-                  <>
-                    <span className="spinner-arc h-4 w-4" />
-                    {t.publishing}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    {t.publish}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="grid gap-5 px-6 py-6 sm:px-7 lg:grid-cols-[0.72fr_1.28fr]">
-            <div className="space-y-5">
-              <section className="surface-muted p-5">
-                <div className="card-header-divider">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    {t.editExam}
-                  </h3>
-                </div>
-
-                <div className="mt-5 space-y-4">
-                  <label className="space-y-2">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {t.examTitle}
-                    </span>
-                    <input
-                      value={draft.title}
-                      onChange={(event) =>
-                        setDraft((current) =>
-                          current ? { ...current, title: event.target.value } : current
-                        )
-                      }
-                      className="field-input px-4"
-                    />
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {t.topicFocus}
-                    </span>
-                    <textarea
-                      value={draft.topicFocus}
-                      onChange={(event) =>
-                        setDraft((current) =>
-                          current
-                            ? { ...current, topicFocus: event.target.value }
-                            : current
-                        )
-                      }
-                      className="field-input min-h-24 resize-none px-4"
-                    />
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {t.descriptionLabel}
-                    </span>
-                    <textarea
-                      value={draft.description}
-                      onChange={(event) =>
-                        setDraft((current) =>
-                          current
-                            ? { ...current, description: event.target.value }
-                            : current
-                        )
-                      }
-                      className="field-input min-h-28 resize-none px-4"
-                    />
-                  </label>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                        {t.difficulty}
-                      </span>
-                      <select
-                        value={draft.difficulty}
-                        onChange={(event) =>
-                          setDraft((current) =>
-                            current
-                              ? {
-                                  ...current,
-                                  difficulty: event.target.value as ExamDifficulty,
-                                }
-                              : current
-                          )
-                        }
-                        className="field-input px-4"
-                      >
-                        {difficultyOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {t[option]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                        {t.duration}
-                      </span>
-                      <input
-                        type="number"
-                        min={10}
-                        max={240}
-                        value={draft.estimatedDurationMinutes}
-                        onChange={(event) =>
-                          setDraft((current) =>
-                            current
-                              ? {
-                                  ...current,
-                                  estimatedDurationMinutes: Math.max(
-                                    10,
-                                    Math.min(240, Number(event.target.value) || 10)
-                                  ),
-                                }
-                              : current
-                          )
-                        }
-                        className="field-input px-4"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </section>
-
-              <section className="surface-muted p-5">
-                <div className="card-header-divider flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    {t.instructions}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDraft((current) =>
-                        current
-                          ? {
-                              ...current,
-                              instructions: [...current.instructions, ''],
-                            }
-                          : current
-                      )
-                    }
-                    className="secondary-button px-4 py-2"
-                  >
-                    {t.addInstruction}
-                  </button>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  {draft.instructions.map((instruction, index) => (
-                    <input
-                      key={`${draft.title}-instruction-${index}`}
-                      value={instruction}
-                      onChange={(event) =>
-                        setDraft((current) =>
-                          current
-                            ? {
-                                ...current,
-                                instructions: current.instructions.map((item, itemIndex) =>
-                                  itemIndex === index ? event.target.value : item
-                                ),
-                              }
-                            : current
-                        )
-                      }
-                      className="field-input px-4"
-                      placeholder={t.instructionPlaceholder}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <section className="surface-muted p-5">
-                <div className="card-header-divider flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    {t.addQuestion}
-                  </h3>
-                  <RefreshCcw className="h-4 w-4 text-[var(--accent)]" />
-                </div>
-
-                <div className="mt-4 flex flex-col gap-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyDraftUpdate((current) => ({
-                        ...current,
-                        questions: [
-                          ...current.questions,
-                          createManualQuestion('multiple_choice', locale),
-                        ],
-                      }))
-                    }
-                    className="secondary-button justify-center"
-                  >
-                    {t.mcq}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyDraftUpdate((current) => ({
-                        ...current,
-                        questions: [
-                          ...current.questions,
-                          createManualQuestion('fill_in_blank', locale),
-                        ],
-                      }))
-                    }
-                    className="secondary-button justify-center"
-                  >
-                    {t.fill}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyDraftUpdate((current) => ({
-                        ...current,
-                        questions: [
-                          ...current.questions,
-                          createManualQuestion('open_ended', locale),
-                        ],
-                      }))
-                    }
-                    className="secondary-button justify-center"
-                  >
-                    {t.open}
-                  </button>
-                </div>
-              </section>
-            </div>
-
-            <section className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                  {t.editQuestions}
-                </h3>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {draft.questions.length} {t.totalQuestions.toLowerCase()} • {draft.totalPoints}{' '}
-                  {t.totalPoints.toLowerCase()}
-                </p>
-              </div>
-
-              {draft.questions.map((question, index) => {
-                const meta = EXAM_CATEGORY_META[question.type]
-
-                return (
-                  <article
-                    key={question.id}
-                    style={{ '--qi': index } as CSSProperties}
-                    className={`surface-muted animate-fadeInUp border-l-4 p-5 ${questionAccentClasses[question.type]} [animation-delay:calc(var(--qi)*80ms)] [animation-fill-mode:both]`}
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="icon-shell h-11 w-11 text-[var(--accent)]">
-                          <span className="text-sm font-semibold">{index + 1}</span>
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            {t.questionLabel} {index + 1}
-                          </p>
-                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            {meta.label[locale]}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                          {t.points}
-                          <input
-                            type="number"
-                            min={1}
-                            max={100}
-                            value={question.points}
-                            onChange={(event) =>
-                              updateQuestion(question.id, (current) => ({
-                                ...current,
-                                points: Math.max(
-                                  1,
-                                  Math.min(100, Number(event.target.value) || 1)
-                                ),
-                              }))
-                            }
-                            className="field-input w-24 px-3"
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            applyDraftUpdate((current) => ({
-                              ...current,
-                              questions: current.questions.filter(
-                                (entry) => entry.id !== question.id
-                              ),
-                            }))
-                          }
-                          data-destructive="true"
-                          className="secondary-button px-4 py-2 text-rose-600 dark:text-rose-300"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          {t.removeQuestion}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-5 space-y-4">
-                      <label className="space-y-2">
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                          {t.prompt}
-                        </span>
-                        <textarea
-                          value={question.prompt}
-                          onChange={(event) =>
-                            updateQuestion(question.id, (current) => ({
-                              ...current,
-                              prompt: event.target.value,
-                            }))
-                          }
-                          className="field-input min-h-28 resize-none px-4"
-                        />
-                      </label>
-
-                      {question.type === 'multiple_choice' && (
-                        <>
-                          <div className="grid gap-3 md:grid-cols-2">
-                            {question.options.map((option, optionIndex) => (
-                              <label
-                                key={`${question.id}-option-${optionIndex}`}
-                                className="space-y-2"
-                              >
-                                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                                  {t.option} {optionIndex + 1}
-                                </span>
-                                <input
-                                  value={option}
-                                  onChange={(event) =>
-                                    updateQuestion(question.id, (current) => {
-                                      if (current.type !== 'multiple_choice') return current
-                                      const nextOptions = current.options.map(
-                                        (item, itemIndex) =>
-                                          itemIndex === optionIndex
-                                            ? event.target.value
-                                            : item
-                                      )
-                                      const nextCorrectAnswer =
-                                        current.correctAnswer ===
-                                        current.options[optionIndex]
-                                          ? event.target.value
-                                          : current.correctAnswer
-
-                                      return {
-                                        ...current,
-                                        options: nextOptions,
-                                        correctAnswer: nextCorrectAnswer,
-                                      }
-                                    })
-                                  }
-                                  className="field-input px-4"
-                                />
-                              </label>
-                            ))}
-                          </div>
-
-                          <label className="space-y-2">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {t.correctAnswer}
-                            </span>
-                            <select
-                              value={question.correctAnswer}
-                              onChange={(event) =>
-                                updateQuestion(question.id, (current) =>
-                                  current.type === 'multiple_choice'
-                                    ? {
-                                        ...current,
-                                        correctAnswer: event.target.value,
-                                      }
-                                    : current
-                                )
-                              }
-                              className="field-input px-4"
-                            >
-                              {question.options.map((option) => (
-                                <option key={`${question.id}-${option}`} value={option}>
-                                  {option}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-
-                          <label className="space-y-2">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {t.explanation}
-                            </span>
-                            <textarea
-                              value={question.explanation}
-                              onChange={(event) =>
-                                updateQuestion(question.id, (current) =>
-                                  current.type === 'multiple_choice'
-                                    ? {
-                                        ...current,
-                                        explanation: event.target.value,
-                                      }
-                                    : current
-                                )
-                              }
-                              className="field-input min-h-24 resize-none px-4"
-                            />
-                          </label>
-                        </>
-                      )}
-
-                      {question.type === 'fill_in_blank' && (
-                        <>
-                          <label className="space-y-2">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {t.correctAnswer}
-                            </span>
-                            <input
-                              value={question.correctAnswer}
-                              onChange={(event) =>
-                                updateQuestion(question.id, (current) =>
-                                  current.type === 'fill_in_blank'
-                                    ? {
-                                        ...current,
-                                        correctAnswer: event.target.value,
-                                      }
-                                    : current
-                                )
-                              }
-                              className="field-input px-4"
-                            />
-                          </label>
-
-                          <label className="space-y-2">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {t.acceptableAnswers}
-                            </span>
-                            <input
-                              value={question.acceptableAnswers.join(', ')}
-                              onChange={(event) =>
-                                updateQuestion(question.id, (current) =>
-                                  current.type === 'fill_in_blank'
-                                    ? {
-                                        ...current,
-                                        acceptableAnswers: event.target.value
-                                          .split(',')
-                                          .map((entry) => entry.trim())
-                                          .filter(Boolean),
-                                      }
-                                    : current
-                                )
-                              }
-                              className="field-input px-4"
-                            />
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {t.acceptableAnswersHint}
-                            </p>
-                          </label>
-
-                          <label className="space-y-2">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {t.explanation}
-                            </span>
-                            <textarea
-                              value={question.explanation}
-                              onChange={(event) =>
-                                updateQuestion(question.id, (current) =>
-                                  current.type === 'fill_in_blank'
-                                    ? {
-                                        ...current,
-                                        explanation: event.target.value,
-                                      }
-                                    : current
-                                )
-                              }
-                              className="field-input min-h-24 resize-none px-4"
-                            />
-                          </label>
-                        </>
-                      )}
-
-                      {question.type === 'open_ended' && (
-                        <>
-                          <label className="space-y-2">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {t.sampleAnswer}
-                            </span>
-                            <textarea
-                              value={question.sampleAnswer}
-                              onChange={(event) =>
-                                updateQuestion(question.id, (current) =>
-                                  current.type === 'open_ended'
-                                    ? {
-                                        ...current,
-                                        sampleAnswer: event.target.value,
-                                      }
-                                    : current
-                                )
-                              }
-                              className="field-input min-h-28 resize-none px-4"
-                            />
-                          </label>
-
-                          <label className="space-y-2">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {t.gradingNotes}
-                            </span>
-                            <textarea
-                              value={question.gradingNotes.join('\n')}
-                              onChange={(event) =>
-                                updateQuestion(question.id, (current) =>
-                                  current.type === 'open_ended'
-                                    ? {
-                                        ...current,
-                                        gradingNotes: event.target.value
-                                          .split('\n')
-                                          .map((entry) => entry.trim())
-                                          .filter(Boolean),
-                                      }
-                                    : current
-                                )
-                              }
-                              className="field-input min-h-24 resize-none px-4"
-                            />
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {t.gradingNotesHint}
-                            </p>
-                          </label>
-                        </>
-                      )}
-                    </div>
-                  </article>
-                )
-              })}
-            </section>
-          </div>
-        </section>
-      )}
         </>
       )}
 
