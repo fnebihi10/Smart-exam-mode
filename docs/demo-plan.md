@@ -42,7 +42,7 @@ Smart Exam Mode eshte platforme studimi per studente qe duan t'i mbajne material
 - `Supabase Auth` per identitetin e perdoruesit dhe izolimin sipas `user_id`.
 - `Supabase Database + RLS` per `lecture_files`, `exams`, `exam_attempts` dhe `tasks`.
 - `Supabase Storage` per ruajtjen e materialeve.
-- `OpenRouter + OpenAI SDK` per AI chat dhe gjenerim provimi.
+- `OpenAI SDK` per AI chat dhe gjenerim provimi.
 - Parsing i skedareve `PDF`, `DOCX` dhe `TXT` para perdorimit si context.
 
 ## Cfare kam kontrolluar para demos
@@ -50,7 +50,7 @@ Smart Exam Mode eshte platforme studimi per studente qe duan t'i mbajne material
 - `npm run build` kalon me sukses ne production build.
 - Login, signup dhe reset password kane flow te qarte.
 - Upload dhe preview i materialeve funksionojne.
-- AI chat kthen pergjigje kur `OPENROUTER_API_KEY` eshte konfiguruar.
+- AI chat kthen pergjigje kur `OPENAI_API_KEY` eshte konfiguruar.
 - Gjenerimi i provimit punon me materiale ose me `topic focus`.
 - Publikimi i provimit dhe live exam mode varen nga tabelat e krijuara me `supabase_setup.sql`.
 - README eshte perditesuar me setup dhe demo flow.
@@ -58,7 +58,7 @@ Smart Exam Mode eshte platforme studimi per studente qe duan t'i mbajne material
 ## Plani B nese live demo deshton
 
 - Nese URL live nuk hapet, demonstroj lokalisht me `npm run dev`.
-- Nese OpenRouter ka vonese ose rate limit, tregoj draft provimi te gjeneruar me pare dhe shpjegoj flow-n.
+- Nese OpenAI ka vonese ose rate limit, tregoj draft provimi te gjeneruar me pare dhe shpjegoj flow-n.
 - Nese Supabase ka problem me rrjetin, tregoj strukturat e databazes ne `supabase_setup.sql` dhe screenshot/video te rrjedhes.
 - Mbaj nje material testues dhe nje llogari testuese gati para prezantimit.
 

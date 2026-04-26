@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getLectureContext } from '@/utils/fileParsing'
 import {
-  createOpenRouterClient,
-  getOpenRouterModel,
-  hasOpenRouterApiKey,
-} from '@/utils/openrouter'
+  createOpenAIClient,
+  getOpenAIModel,
+  hasOpenAIApiKey,
+} from '@/utils/openai'
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
 import {
   type ExamGenerationRequest,
@@ -13,8 +13,7 @@ import {
   type GeneratedExam,
 } from '@/types/exams'
 
-const client = createOpenRouterClient()
-const examModel = getOpenRouterModel('OPENROUTER_EXAM_MODEL')
+const examModel = getOpenAIModel('OPENAI_EXAM_MODEL')
 
 const questionTypeOrder: ExamQuestionType[] = [
   'multiple_choice',
@@ -24,6 +23,7 @@ const questionTypeOrder: ExamQuestionType[] = [
 
 const MAX_TITLE_CHARS = 120
 const MAX_TOPIC_FOCUS_CHARS = 1200
+const MAX_EXAM_COMPLETION_TOKENS = 9000
 
 class ExamShapeError extends Error {
   missingCounts: Partial<Record<ExamQuestionType, number>>
@@ -374,6 +374,7 @@ const generateExam = async (
 ) => {
   const systemMessage =
     'You create structured exam drafts from lecture material. Follow the requested JSON schema exactly.'
+  const client = createOpenAIClient()
 
   let retryInstruction: string | null = null
 
@@ -393,7 +394,8 @@ const generateExam = async (
         },
       ],
       temperature: 0.5,
-      max_tokens: 4000,
+      max_completion_tokens: MAX_EXAM_COMPLETION_TOKENS,
+      response_format: { type: 'json_object' },
     })
 
     const content = completion.choices[0]?.message.content
@@ -419,9 +421,9 @@ const generateExam = async (
 
 export async function POST(request: NextRequest) {
   try {
-    if (!hasOpenRouterApiKey()) {
+    if (!hasOpenAIApiKey()) {
       return NextResponse.json(
-        { error: 'Server is missing OPENROUTER_API_KEY. Please configure it in Vercel.' },
+        { error: 'Server is missing OPENAI_API_KEY. Please configure it in Vercel.' },
         { status: 500 }
       )
     }

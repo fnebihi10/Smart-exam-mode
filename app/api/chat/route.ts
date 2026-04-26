@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getLectureContext } from '@/utils/fileParsing'
 import {
-  createOpenRouterClient,
-  getOpenRouterModel,
-  hasOpenRouterApiKey,
-} from '@/utils/openrouter'
+  createOpenAIClient,
+  getOpenAIModel,
+  hasOpenAIApiKey,
+} from '@/utils/openai'
 
-const client = createOpenRouterClient()
-const chatModel = getOpenRouterModel('OPENROUTER_CHAT_MODEL')
+const chatModel = getOpenAIModel('OPENAI_CHAT_MODEL')
 
 export async function POST(request: NextRequest) {
   try {
-    if (!hasOpenRouterApiKey()) {
+    if (!hasOpenAIApiKey()) {
       return NextResponse.json(
-        { error: 'OPENROUTER_API_KEY is missing on the server.' },
+        { error: 'OPENAI_API_KEY is missing on the server.' },
         { status: 500 }
       )
     }
@@ -36,6 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     const lectureContext = await getLectureContext()
+    const client = createOpenAIClient()
 
     const completion = await client.chat.completions.create({
       model: chatModel,
@@ -52,7 +52,7 @@ ${lectureContext || 'Nuk ka materiale te ngarkuara ende.'}`,
         },
         { role: 'user', content: message },
       ],
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
     })
 
     const reply =

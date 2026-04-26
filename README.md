@@ -1,6 +1,6 @@
 # Smart Exam Mode
 
-Smart Exam Mode is a bilingual study platform built with Next.js, Supabase, and OpenRouter. It lets students upload lecture materials, ask AI questions about those materials, generate structured exam drafts, publish exams, and run live exam sessions with violation tracking.
+Smart Exam Mode is a bilingual study platform built with Next.js, Supabase, and OpenAI. It lets students upload lecture materials, ask AI questions about those materials, generate structured exam drafts, publish exams, and run live exam sessions with violation tracking.
 
 ## Core flow
 
@@ -26,7 +26,7 @@ Smart Exam Mode is a bilingual study platform built with Next.js, Supabase, and 
 - React 19
 - TypeScript
 - Supabase Auth, Database, and Storage
-- OpenRouter via the OpenAI SDK
+- OpenAI via the official OpenAI SDK
 - Tailwind CSS
 
 ## Project structure
@@ -37,7 +37,7 @@ components/            dashboard, auth, theme, and i18n UI
 contexts/              auth context
 docs/                  presentation/demo documentation
 types/                 shared TypeScript models
-utils/                 Supabase, OpenRouter, parsing, and helpers
+utils/                 Supabase, OpenAI, parsing, and helpers
 supabase_setup.sql     database schema and RLS setup
 ```
 
@@ -51,7 +51,7 @@ npm install
 
 2. Copy `.env.example` to `.env.local` and fill in your real values.
 
-3. Run the SQL in [supabase_setup.sql](/c:/Users/Bluechip/Smart-exam-mode/supabase_setup.sql) to create:
+3. Run the SQL in [supabase_setup.sql](supabase_setup.sql) to create:
 - `lecture_files`
 - `exams`
 - `exam_attempts`
@@ -73,14 +73,12 @@ Use the following values in `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-OPENROUTER_API_KEY=your_openrouter_api_key
-OPENROUTER_EXAM_MODEL=openai/gpt-4o-mini
-OPENROUTER_CHAT_MODEL=openai/gpt-4o-mini
-APP_URL=http://localhost:3000
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_EXAM_MODEL=gpt-4o-mini
+OPENAI_CHAT_MODEL=gpt-4o-mini
 ```
 
-- `OPENROUTER_EXAM_MODEL` and `OPENROUTER_CHAT_MODEL` are optional overrides.
-- `APP_URL` should match your deployed domain in production.
+- `OPENAI_EXAM_MODEL` and `OPENAI_CHAT_MODEL` are optional overrides.
 
 ## Demo-ready checks
 
@@ -88,7 +86,7 @@ APP_URL=http://localhost:3000
 - Verify auth flows: signup, login, reset password
 - Verify upload, preview, AI chat, exam generation, publish, and live exam mode
 - Keep a prepared demo account and 1-2 sample lecture files ready
-- Review [docs/demo-plan.md](/c:/Users/Bluechip/Smart-exam-mode/docs/demo-plan.md) before presenting
+- Review [docs/demo-plan.md](docs/demo-plan.md) before presenting
 
 ## Live URL
 
