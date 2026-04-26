@@ -123,7 +123,7 @@ export default function SignUp() {
       password,
       options: {
         data: { full_name: name.trim() },
-        emailRedirectTo: getClientRedirectUrl('/login'),
+        emailRedirectTo: getClientRedirectUrl('/auth/confirm?next=/login'),
       },
     })
 
