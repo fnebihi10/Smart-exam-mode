@@ -234,6 +234,19 @@ const copy = {
 
 const MAX_EXAM_TITLE_CHARS = 120
 const MAX_TOPIC_FOCUS_CHARS = 1200
+const MIN_DURATION_MINUTES = 10
+const MAX_DURATION_MINUTES = 240
+const MAX_CATEGORY_COUNT = 20
+const MIN_CATEGORY_POINTS = 1
+const MAX_CATEGORY_POINTS = 100
+
+type CategoryInputState = Record<
+  ExamQuestionType,
+  {
+    count: string
+    points: string
+  }
+>
 
 const createInitialConfig = (locale: 'en' | 'sq'): ExamGenerationRequest => ({
   title:
@@ -246,6 +259,76 @@ const createInitialConfig = (locale: 'en' | 'sq'): ExamGenerationRequest => ({
   estimatedDurationMinutes: 60,
   selectedLectureIds: [],
   categories: DEFAULT_EXAM_SETTINGS.map((category) => ({ ...category })),
+})
+
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value))
+
+const sanitizeNumericInput = (value: string) => value.replace(/[^\d]/g, '')
+
+const parseIntegerInput = (value: string) => {
+  if (!value.trim()) return null
+
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const createCategoryInputState = (
+  categories: ExamGenerationRequest['categories']
+): CategoryInputState =>
+  categories.reduce(
+    (accumulator, category) => ({
+      ...accumulator,
+      [category.type]: {
+        count: String(category.count),
+        points: String(category.points),
+      },
+    }),
+    {} as CategoryInputState
+  )
+
+const normalizeDurationValue = (value: string, fallback: number) =>
+  clampNumber(
+    parseIntegerInput(value) ?? fallback,
+    MIN_DURATION_MINUTES,
+    MAX_DURATION_MINUTES
+  )
+
+const normalizeCategoryValue = (
+  field: 'count' | 'points',
+  value: string,
+  fallback: number
+) => {
+  const parsed = parseIntegerInput(value) ?? fallback
+
+  return field === 'count'
+    ? clampNumber(parsed, 0, MAX_CATEGORY_COUNT)
+    : clampNumber(parsed, MIN_CATEGORY_POINTS, MAX_CATEGORY_POINTS)
+}
+
+const buildNormalizedConfig = (
+  config: ExamGenerationRequest,
+  durationInput: string,
+  categoryInputs: CategoryInputState
+): ExamGenerationRequest => ({
+  ...config,
+  estimatedDurationMinutes: normalizeDurationValue(
+    durationInput,
+    config.estimatedDurationMinutes
+  ),
+  categories: config.categories.map((category) => ({
+    ...category,
+    count: normalizeCategoryValue(
+      'count',
+      categoryInputs[category.type]?.count ?? String(category.count),
+      category.count
+    ),
+    points: normalizeCategoryValue(
+      'points',
+      categoryInputs[category.type]?.points ?? String(category.points),
+      category.points
+    ),
+  })),
 })
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -316,6 +399,12 @@ export default function ExamBuilder() {
   const [config, setConfig] = useState<ExamGenerationRequest>(() =>
     createInitialConfig(locale)
   )
+  const [durationInput, setDurationInput] = useState(() =>
+    String(createInitialConfig(locale).estimatedDurationMinutes)
+  )
+  const [categoryInputs, setCategoryInputs] = useState<CategoryInputState>(() =>
+    createCategoryInputState(createInitialConfig(locale).categories)
+  )
   const [publishedExams, setPublishedExams] = useState<StoredExamRecord[]>([])
   const [lectureOptions, setLectureOptions] = useState<LectureFileListItem[]>([])
   const [loadingLectures, setLoadingLectures] = useState(true)
@@ -338,20 +427,29 @@ export default function ExamBuilder() {
     setConfig((current) => ({ ...current, language: locale }))
   }, [locale])
 
+  const normalizedConfig = useMemo(
+    () => buildNormalizedConfig(config, durationInput, categoryInputs),
+    [categoryInputs, config, durationInput]
+  )
+
   const totalQuestions = useMemo(
-    () => config.categories.reduce((sum, category) => sum + category.count, 0),
-    [config.categories]
+    () =>
+      normalizedConfig.categories.reduce(
+        (sum, category) => sum + category.count,
+        0
+      ),
+    [normalizedConfig.categories]
   )
 
   const selectedLectureCount = config.selectedLectureIds.length
 
   const totalPoints = useMemo(
     () =>
-      config.categories.reduce(
+      normalizedConfig.categories.reduce(
         (sum, category) => sum + category.count * category.points,
         0
       ),
-    [config.categories]
+    [normalizedConfig.categories]
   )
 
   const currentStep = publishedThisSession ? 3 : generating ? 2 : 1
@@ -493,21 +591,65 @@ export default function ExamBuilder() {
     void fetchLectureOptions()
   }, [fetchLectureOptions])
 
-  const updateCategory = (
+  const updateCategoryInput = (
     type: ExamQuestionType,
     field: 'count' | 'points',
-    value: number
+    value: string
   ) => {
+    const sanitized = sanitizeNumericInput(value)
+
+    setCategoryInputs((current) => ({
+      ...current,
+      [type]: {
+        ...current[type],
+        [field]: sanitized,
+      },
+    }))
+  }
+
+  const commitDurationInput = () => {
+    const normalizedDuration = normalizeDurationValue(
+      durationInput,
+      config.estimatedDurationMinutes
+    )
+
+    setDurationInput(String(normalizedDuration))
+    setConfig((current) => ({
+      ...current,
+      estimatedDurationMinutes: normalizedDuration,
+    }))
+  }
+
+  const commitCategoryInput = (
+    type: ExamQuestionType,
+    field: 'count' | 'points'
+  ) => {
+    const currentCategory = config.categories.find((category) => category.type === type)
+
+    if (!currentCategory) return
+
+    const fallbackValue = currentCategory[field]
+    const normalizedValue = normalizeCategoryValue(
+      field,
+      categoryInputs[type][field],
+      fallbackValue
+    )
+
+    setCategoryInputs((current) => ({
+      ...current,
+      [type]: {
+        ...current[type],
+        [field]: String(normalizedValue),
+      },
+    }))
+
     setConfig((current) => ({
       ...current,
       categories: current.categories.map((category) =>
         category.type === type
           ? {
               ...category,
-              [field]:
-                field === 'count'
-                  ? Math.max(0, Math.min(20, value))
-                  : Math.max(1, Math.min(100, value)),
+              [field]: normalizedValue,
             }
           : category
       ),
@@ -581,8 +723,13 @@ export default function ExamBuilder() {
     setError('')
     setSuccess('')
 
-    const title = config.title.trim()
-    const topicFocus = config.topicFocus.trim()
+    const requestConfig = buildNormalizedConfig(config, durationInput, categoryInputs)
+    setConfig(requestConfig)
+    setDurationInput(String(requestConfig.estimatedDurationMinutes))
+    setCategoryInputs(createCategoryInputState(requestConfig.categories))
+
+    const title = requestConfig.title.trim()
+    const topicFocus = requestConfig.topicFocus.trim()
 
     if (!title) {
       setGenerating(false)
@@ -608,7 +755,7 @@ export default function ExamBuilder() {
       return
     }
 
-    if (!config.selectedLectureIds.length && !config.topicFocus.trim()) {
+    if (!requestConfig.selectedLectureIds.length && !requestConfig.topicFocus.trim()) {
       setGenerating(false)
       setError(t.lectureRequired)
       return
@@ -618,7 +765,7 @@ export default function ExamBuilder() {
       const response = await fetch('/api/exams/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify(requestConfig),
       })
 
       const data = (await safeReadJson(response)) as { error?: string; exam?: GeneratedExam; contextAvailable?: boolean } | null
@@ -971,19 +1118,12 @@ export default function ExamBuilder() {
                 </span>
                 <div className="relative">
                   <input
-                    type="number"
-                    min={10}
-                    max={240}
-                    value={config.estimatedDurationMinutes}
-                    onChange={(event) =>
-                      setConfig((current) => ({
-                        ...current,
-                        estimatedDurationMinutes: Math.max(
-                          10,
-                          Math.min(240, Number(event.target.value) || 10)
-                        ),
-                      }))
-                    }
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={durationInput}
+                    onChange={(event) => setDurationInput(sanitizeNumericInput(event.target.value))}
+                    onBlur={commitDurationInput}
                     className="field-input px-4 pr-24"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-400">
@@ -1134,17 +1274,14 @@ export default function ExamBuilder() {
                         {t.count}
                       </span>
                       <input
-                        type="number"
-                        min={0}
-                        max={20}
-                        value={category.count}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={categoryInputs[category.type].count}
                         onChange={(event) =>
-                          updateCategory(
-                            category.type,
-                            'count',
-                            Number(event.target.value) || 0
-                          )
+                          updateCategoryInput(category.type, 'count', event.target.value)
                         }
+                        onBlur={() => commitCategoryInput(category.type, 'count')}
                         className="field-input px-4"
                       />
                     </label>
@@ -1154,17 +1291,14 @@ export default function ExamBuilder() {
                         {t.points}
                       </span>
                       <input
-                        type="number"
-                        min={1}
-                        max={100}
-                        value={category.points}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={categoryInputs[category.type].points}
                         onChange={(event) =>
-                          updateCategory(
-                            category.type,
-                            'points',
-                            Number(event.target.value) || 1
-                          )
+                          updateCategoryInput(category.type, 'points', event.target.value)
                         }
+                        onBlur={() => commitCategoryInput(category.type, 'points')}
                         className="field-input px-4"
                       />
                     </label>
@@ -1196,7 +1330,7 @@ export default function ExamBuilder() {
                 {t.totalDuration}
               </p>
               <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
-                {config.estimatedDurationMinutes} {t.minutes}
+                {normalizedConfig.estimatedDurationMinutes} {t.minutes}
               </p>
             </div>
           </div>
