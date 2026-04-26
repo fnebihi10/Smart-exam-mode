@@ -5,15 +5,12 @@ import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'r
 import {
   ArrowLeft,
   CheckCircle2,
-  Clock3,
   Eye,
   FileCheck2,
   FileText,
-  Layers3,
   Play,
   RefreshCcw,
   Sparkles,
-  Target,
   Trash2,
   WandSparkles,
 } from 'lucide-react'
@@ -941,55 +938,13 @@ export default function ExamBuilder() {
   return (
     <div className="mx-auto max-w-7xl space-y-5 pb-4">
       <section className="surface animate-fadeInScale p-6 sm:p-8 lg:p-10">
-        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr] xl:items-end">
-          <div>
-            <Link href="/dashboard" className="secondary-button px-4 py-2">
-              <ArrowLeft className="h-4 w-4" />
-              {t.back}
-            </Link>
-            <span className="eyebrow mt-5">{t.badge}</span>
-            <h1 className="page-title mt-5 max-w-4xl">{t.title}</h1>
-            <p className="page-copy mt-4 max-w-3xl">{t.description}</p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="surface-muted animate-fadeInUp p-4 [animation-delay:120ms] [animation-fill-mode:both]">
-              <div className="icon-shell h-11 w-11 text-[var(--accent)]">
-                <Layers3 className="h-4 w-4" />
-              </div>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                {t.totalQuestions}
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
-                {totalQuestions}
-              </p>
-            </div>
-
-            <div className="surface-muted animate-fadeInUp p-4 [animation-delay:200ms] [animation-fill-mode:both]">
-              <div className="icon-shell h-11 w-11 text-amber-600 dark:text-amber-300">
-                <Target className="h-4 w-4" />
-              </div>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                {t.totalPoints}
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
-                {totalPoints}
-              </p>
-            </div>
-
-            <div className="surface-muted animate-fadeInUp p-4 [animation-delay:280ms] [animation-fill-mode:both]">
-              <div className="icon-shell h-11 w-11 text-sky-600 dark:text-sky-300">
-                <Clock3 className="h-4 w-4" />
-              </div>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                {t.totalDuration}
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
-                {config.estimatedDurationMinutes}
-              </p>
-            </div>
-          </div>
-        </div>
+        <Link href="/dashboard" className="secondary-button px-4 py-2">
+          <ArrowLeft className="h-4 w-4" />
+          {t.back}
+        </Link>
+        <span className="eyebrow mt-5">{t.badge}</span>
+        <h1 className="page-title mt-5 max-w-4xl">{t.title}</h1>
+        <p className="page-copy mt-4 max-w-3xl">{t.description}</p>
       </section>
 
       <section className="surface animate-fadeInScale p-4 sm:p-5">
