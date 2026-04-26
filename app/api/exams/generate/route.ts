@@ -10,7 +10,6 @@ import {
   type ExamGenerationRequest,
   type ExamQuestion,
   type ExamQuestionType,
-  type GeneratedExam,
 } from '@/types/exams'
 
 const examModel = getOpenAIModel('OPENAI_EXAM_MODEL')
@@ -24,6 +23,8 @@ const questionTypeOrder: ExamQuestionType[] = [
 const MAX_TITLE_CHARS = 120
 const MAX_TOPIC_FOCUS_CHARS = 1200
 const MAX_EXAM_COMPLETION_TOKENS = 9000
+const QUESTION_BATCH_SIZE = 10
+const MAX_BATCH_ATTEMPTS = 3
 
 class ExamShapeError extends Error {
   missingCounts: Partial<Record<ExamQuestionType, number>>
@@ -195,137 +196,16 @@ const sanitizeQuestion = (question: unknown, index: number, points: number): Exa
   }
 }
 
-const sanitizeExam = (
-  raw: unknown,
-  request: ExamGenerationRequest
-): GeneratedExam => {
-  const safeExam = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
-  const rawQuestions = Array.isArray(safeExam.questions) ? safeExam.questions : []
-  const categoryMap = new Map(request.categories.map((category) => [category.type, category]))
-
-  const questionsByType = new Map<ExamQuestionType, ExamQuestion[]>(
-    questionTypeOrder.map((type) => [type, [] as ExamQuestion[]])
-  )
-
-  rawQuestions.forEach((question, index) => {
-    const safeQuestion =
-      typeof question === 'object' && question !== null ? (question as Record<string, unknown>) : {}
-
-    const inferredType = normalizeQuestionType(safeQuestion.type, safeQuestion)
-
-    const defaultPoints = categoryMap.get(inferredType)?.points ?? 1
-    const sanitized = sanitizeQuestion(question, index, defaultPoints)
-    questionsByType.get(sanitized.type)?.push(sanitized)
-  })
-
-  const finalQuestions: ExamQuestion[] = []
-  const missingCounts: Partial<Record<ExamQuestionType, number>> = {}
-
-  request.categories.forEach((category) => {
-    const matchingQuestions = questionsByType.get(category.type) ?? []
-
-    if (matchingQuestions.length < category.count) {
-      missingCounts[category.type] = category.count - matchingQuestions.length
-      return
-    }
-
-    matchingQuestions
-      .slice(0, category.count)
-      .forEach((question) => finalQuestions.push({ ...question, points: category.points }))
-  })
-
-  if (Object.keys(missingCounts).length > 0) {
-    const missingSummary = questionTypeOrder
-      .filter((type) => missingCounts[type])
-      .map((type) => `${type}: ${missingCounts[type]} more needed`)
-      .join(', ')
-
-    throw new ExamShapeError(
-      `The AI returned too few questions in some categories (${missingSummary}).`,
-      missingCounts
-    )
-  }
-
-  const totalPoints = finalQuestions.reduce((sum, question) => sum + question.points, 0)
-
-  return {
-    title: cleanText(safeExam.title, request.title),
-    description: cleanText(
-      safeExam.description,
-      request.language === 'sq'
-        ? 'Provim i gjeneruar nga AI bazuar ne materialet e ngarkuara dhe fokusin e zgjedhur.'
-        : 'AI-generated exam based on your uploaded materials and selected focus.'
-    ),
-    instructions: normalizeStringArray(
-      safeExam.instructions,
-      request.language === 'sq'
-        ? [
-            'Lexo cdo pyetje me kujdes.',
-            'Menaxho kohen sipas pikeve te caktuara.',
-            'Per pyetjet e hapura, perdor argumente te qarta dhe terma nga materiali.',
-          ]
-        : [
-            'Read each question carefully.',
-            'Manage your time based on the point value of each question.',
-            'For open-ended questions, use precise concepts from the study material.',
-          ]
-    ),
-    topicFocus: request.topicFocus,
-    difficulty: request.difficulty,
-    estimatedDurationMinutes: clamp(request.estimatedDurationMinutes, 10, 240),
-    totalPoints,
-    questions: finalQuestions,
-  }
+const questionTypeLabels: Record<ExamQuestionType, string> = {
+  multiple_choice: 'multiple-choice',
+  fill_in_blank: 'fill-in-the-blank',
+  open_ended: 'open-ended',
 }
 
-const buildPrompt = (request: ExamGenerationRequest, lectureContext: string) => {
-  const categorySummary = request.categories
-    .map(
-      (category) =>
-        `- ${category.type}: ${category.count} question(s), ${category.points} point(s) each`
-    )
-    .join('\n')
-
-  const languageInstruction =
-    request.language === 'sq'
-      ? 'Write the entire exam in Albanian.'
-      : 'Write the entire exam in English.'
-
-  return `You are an expert exam designer for a study platform.
-
-Create a balanced exam that feels like a polished teacher-made assessment.
-Use the uploaded lecture context as the primary source whenever possible.
-If the lecture context is empty, use the topic focus as the fallback.
-
-Requirements:
-- Exam title: ${request.title}
-- Topic focus: ${request.topicFocus || 'Use the uploaded lecture materials as the main focus.'}
-- Difficulty: ${request.difficulty}
-- Estimated duration: ${request.estimatedDurationMinutes} minutes
-- ${languageInstruction}
-- The exam must contain exactly the following categories and counts:
-${categorySummary}
-- Multiple choice questions must have exactly 4 options.
-- Fill-in-the-blank questions must expect a short word or phrase.
-- Open-ended questions must need a written response and include grading notes.
-- Keep question quality high and avoid duplicates.
-- Match each question's point value to the requested category settings.
-- Return valid JSON only. Do not wrap it in markdown.
-
-Return this JSON shape:
-{
-  "title": "string",
-  "description": "string",
-  "instructions": ["string", "string"],
+const getQuestionJsonShape = (type: ExamQuestionType) => {
+  if (type === 'fill_in_blank') {
+    return `{
   "questions": [
-    {
-      "type": "multiple_choice" | "fill_in_blank" | "open_ended",
-      "prompt": "string",
-      "points": number,
-      "options": ["string", "string", "string", "string"],
-      "correctAnswer": "string",
-      "explanation": "string"
-    },
     {
       "type": "fill_in_blank",
       "prompt": "string",
@@ -333,7 +213,14 @@ Return this JSON shape:
       "correctAnswer": "string",
       "acceptableAnswers": ["string"],
       "explanation": "string"
-    },
+    }
+  ]
+}`
+  }
+
+  if (type === 'open_ended') {
+    return `{
+  "questions": [
     {
       "type": "open_ended",
       "prompt": "string",
@@ -342,59 +229,136 @@ Return this JSON shape:
       "gradingNotes": ["string", "string"]
     }
   ]
+}`
+  }
+
+  return `{
+  "questions": [
+    {
+      "type": "multiple_choice",
+      "prompt": "string",
+      "points": number,
+      "options": ["string", "string", "string", "string"],
+      "correctAnswer": "string",
+      "explanation": "string"
+    }
+  ]
+}`
 }
+
+const normalizePromptKey = (value: string) =>
+  value.toLowerCase().replace(/\s+/g, ' ').trim()
+
+const getDefaultDescription = (request: ExamGenerationRequest) =>
+  request.language === 'sq'
+    ? 'Provim i gjeneruar nga AI bazuar ne materialet e ngarkuara dhe fokusin e zgjedhur.'
+    : 'AI-generated exam based on your uploaded materials and selected focus.'
+
+const getDefaultInstructions = (request: ExamGenerationRequest) =>
+  request.language === 'sq'
+    ? [
+        'Lexo cdo pyetje me kujdes.',
+        'Menaxho kohen sipas pikeve te caktuara.',
+        'Per pyetjet e hapura, perdor argumente te qarta dhe terma nga materiali.',
+      ]
+    : [
+        'Read each question carefully.',
+        'Manage your time based on the point value of each question.',
+        'For open-ended questions, use precise concepts from the study material.',
+      ]
+
+const buildQuestionBatchPrompt = (
+  request: ExamGenerationRequest,
+  lectureContext: string,
+  type: ExamQuestionType,
+  count: number,
+  points: number,
+  startIndex: number,
+  existingPrompts: string[]
+) => {
+  const languageInstruction =
+    request.language === 'sq'
+      ? 'Write every question and answer field in Albanian.'
+      : 'Write every question and answer field in English.'
+
+  const previousPrompts = existingPrompts.length
+    ? existingPrompts
+        .slice(-20)
+        .map((prompt) => `- ${prompt}`)
+        .join('\n')
+    : '- None yet.'
+
+  return `You are an expert exam designer for a study platform.
+
+Generate exactly ${count} new ${questionTypeLabels[type]} question(s).
+These are question numbers ${startIndex + 1} through ${startIndex + count} for the exam "${request.title}".
+
+Requirements:
+- Topic focus: ${request.topicFocus || 'Use the uploaded lecture materials as the main focus.'}
+- Difficulty: ${request.difficulty}
+- ${languageInstruction}
+- Every question must have exactly ${points} point(s).
+- Use the uploaded lecture context as the primary source whenever possible.
+- If the lecture context is empty, use the topic focus as the fallback.
+- Avoid duplicate prompts and avoid repeating these existing prompts:
+${previousPrompts}
+- Return valid JSON only. Do not wrap it in markdown.
+- Return exactly this JSON object shape:
+${getQuestionJsonShape(type)}
 
 LECTURE CONTEXT:
 ${lectureContext || 'No uploaded lecture materials were found for this user.'}`
 }
 
-const buildRetryPrompt = (
-  request: ExamGenerationRequest,
-  lectureContext: string,
-  missingCounts: Partial<Record<ExamQuestionType, number>>
-) => {
-  const missingSummary = questionTypeOrder
-    .filter((type) => missingCounts[type])
-    .map((type) => `- ${type}: ${missingCounts[type]} more required`)
-    .join('\n')
+const readQuestionsArray = (raw: unknown) => {
+  const safeValue =
+    typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
 
-  return `${buildPrompt(request, lectureContext)}
+  if (Array.isArray(safeValue.questions)) {
+    return safeValue.questions
+  }
 
-IMPORTANT CORRECTION:
-Your previous answer did not include enough questions in these categories:
-${missingSummary}
-
-Return a complete exam JSON again, not just the missing questions.
-Double-check that the final "questions" array contains the exact requested count for every category before responding.`
+  return []
 }
 
-const generateExam = async (
-  normalizedRequest: ExamGenerationRequest,
-  lectureContext: string
+const generateQuestionBatch = async (
+  client: ReturnType<typeof createOpenAIClient>,
+  request: ExamGenerationRequest,
+  lectureContext: string,
+  type: ExamQuestionType,
+  count: number,
+  points: number,
+  startIndex: number,
+  existingPrompts: string[]
 ) => {
-  const systemMessage =
-    'You create structured exam drafts from lecture material. Follow the requested JSON schema exactly.'
-  const client = createOpenAIClient()
+  const collected: ExamQuestion[] = []
+  const seenPrompts = new Set(existingPrompts.map(normalizePromptKey))
 
-  let retryInstruction: string | null = null
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < MAX_BATCH_ATTEMPTS && collected.length < count; attempt += 1) {
+    const remaining = count - collected.length
     const completion = await client.chat.completions.create({
       model: examModel,
       messages: [
         {
           role: 'system',
-          content: systemMessage,
+          content:
+            'You create exam questions from lecture material. Follow the requested JSON schema exactly.',
         },
         {
           role: 'user',
-          content: retryInstruction
-            ? buildRetryPrompt(normalizedRequest, lectureContext, JSON.parse(retryInstruction) as Partial<Record<ExamQuestionType, number>>)
-            : buildPrompt(normalizedRequest, lectureContext),
+          content: buildQuestionBatchPrompt(
+            request,
+            lectureContext,
+            type,
+            remaining,
+            points,
+            startIndex + collected.length,
+            [...existingPrompts, ...collected.map((question) => question.prompt)]
+          ),
         },
       ],
-      temperature: 0.5,
-      max_completion_tokens: MAX_EXAM_COMPLETION_TOKENS,
+      temperature: 0.45,
+      max_completion_tokens: Math.min(MAX_EXAM_COMPLETION_TOKENS, 1200 + remaining * 450),
       response_format: { type: 'json_object' },
     })
 
@@ -404,19 +368,80 @@ const generateExam = async (
       throw new Error('The AI model returned an empty response.')
     }
 
-    try {
-      const parsed = JSON.parse(extractJson(content))
-      return sanitizeExam(parsed, normalizedRequest)
-    } catch (error) {
-      if (attempt === 1 || !(error instanceof ExamShapeError)) {
-        throw error
+    const parsed = JSON.parse(extractJson(content))
+    const rawQuestions = readQuestionsArray(parsed)
+
+    rawQuestions.forEach((question, index) => {
+      if (collected.length >= count) {
+        return
       }
 
-      retryInstruction = JSON.stringify(error.missingCounts)
+      const sanitized = sanitizeQuestion(
+        question,
+        startIndex + collected.length + index,
+        points
+      )
+      const promptKey = normalizePromptKey(sanitized.prompt)
+
+      if (sanitized.type !== type || seenPrompts.has(promptKey)) {
+        return
+      }
+
+      seenPrompts.add(promptKey)
+      collected.push({ ...sanitized, points })
+    })
+  }
+
+  if (collected.length < count) {
+    throw new ExamShapeError(
+      `The AI returned too few questions in some categories (${type}: ${count - collected.length} more needed).`,
+      { [type]: count - collected.length }
+    )
+  }
+
+  return collected
+}
+
+const generateExam = async (
+  normalizedRequest: ExamGenerationRequest,
+  lectureContext: string
+) => {
+  const client = createOpenAIClient()
+  const finalQuestions: ExamQuestion[] = []
+
+  for (const category of normalizedRequest.categories) {
+    let remaining = category.count
+
+    while (remaining > 0) {
+      const batchSize = Math.min(QUESTION_BATCH_SIZE, remaining)
+      const batch = await generateQuestionBatch(
+        client,
+        normalizedRequest,
+        lectureContext,
+        category.type,
+        batchSize,
+        category.points,
+        finalQuestions.length,
+        finalQuestions.map((question) => question.prompt)
+      )
+
+      finalQuestions.push(...batch)
+      remaining -= batch.length
     }
   }
 
-  throw new Error('Failed to generate the exam draft.')
+  const totalPoints = finalQuestions.reduce((sum, question) => sum + question.points, 0)
+
+  return {
+    title: normalizedRequest.title,
+    description: getDefaultDescription(normalizedRequest),
+    instructions: getDefaultInstructions(normalizedRequest),
+    topicFocus: normalizedRequest.topicFocus,
+    difficulty: normalizedRequest.difficulty,
+    estimatedDurationMinutes: clamp(normalizedRequest.estimatedDurationMinutes, 10, 240),
+    totalPoints,
+    questions: finalQuestions,
+  }
 }
 
 export async function POST(request: NextRequest) {
