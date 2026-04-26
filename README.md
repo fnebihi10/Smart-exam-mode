@@ -92,4 +92,4 @@ APP_URL=http://localhost:3000
 
 ## Live URL
 
-No production deployment URL is recorded in this repository yet. Add the verified deployment URL here before the final presentation.
+https://smart-exam-mode.vercel.app/

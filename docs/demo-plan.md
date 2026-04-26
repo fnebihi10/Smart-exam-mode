@@ -65,7 +65,7 @@ Smart Exam Mode eshte platforme studimi per studente qe duan t'i mbajne material
 ## Live URL
 
 - Repository: `https://github.com/fnebihi10/Smart-exam-mode`
-- Live URL: shtoje ketu pasi te deploy-ohet dhe verifikohet
+- Live URL: `https://smart-exam-mode.vercel.app/`
 
 ## Readiness note
 
