@@ -11,9 +11,9 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
+import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 interface Task {
   id: string
@@ -79,7 +79,7 @@ export default function TasksPage() {
   const { user } = useAuth()
   const { locale } = useAppLocale()
   const t = useMemo(() => copy[locale], [locale])
-  const supabase = createClient()
+  const supabase = useSupabaseBrowserClient()
   const [tasks, setTasks] = useState<Task[]>([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [loading, setLoading] = useState(true)

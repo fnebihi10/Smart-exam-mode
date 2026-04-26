@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { getLectureContext } from '@/utils/fileParsing'
+import {
+  createOpenRouterClient,
+  getOpenRouterModel,
+  hasOpenRouterApiKey,
+} from '@/utils/openrouter'
 
-const client = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': 'http://localhost:3000',
-    'X-Title': 'Smart Exam Mode',
-  },
-})
-
-const chatModel =
-  process.env.OPENROUTER_CHAT_MODEL?.trim() || 'openai/gpt-4o-mini'
+const client = createOpenRouterClient()
+const chatModel = getOpenRouterModel('OPENROUTER_CHAT_MODEL')
 
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.OPENROUTER_API_KEY) {
+    if (!hasOpenRouterApiKey()) {
       return NextResponse.json(
         { error: 'OPENROUTER_API_KEY is missing on the server.' },
         { status: 500 }

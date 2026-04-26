@@ -17,7 +17,6 @@ import {
   Trash2,
   WandSparkles,
 } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
 import {
@@ -35,6 +34,7 @@ import {
   type GeneratedExam,
   type StoredExamRecord,
 } from '@/types/exams'
+import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 const copy = {
   en: {
@@ -373,7 +373,7 @@ export default function ExamBuilder() {
   const { user, loading } = useAuth()
   const { locale } = useAppLocale()
   const t = useMemo(() => copy[locale], [locale])
-  const supabase = createClient()
+  const supabase = useSupabaseBrowserClient()
   const [config, setConfig] = useState<ExamGenerationRequest>(() =>
     createInitialConfig(locale)
   )

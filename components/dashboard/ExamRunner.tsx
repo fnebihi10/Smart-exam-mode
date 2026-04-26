@@ -16,7 +16,6 @@ import {
   ShieldAlert,
   Sparkles,
 } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
 import {
@@ -27,6 +26,7 @@ import {
   type GeneratedExam,
   type StoredExamRecord,
 } from '@/types/exams'
+import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 const VIOLATION_LIMIT = 3
 
@@ -207,7 +207,7 @@ export default function ExamRunner({
   const { user } = useAuth()
   const { locale } = useAppLocale()
   const t = copy[locale]
-  const supabase = createClient()
+  const supabase = useSupabaseBrowserClient()
   const [examRecord, setExamRecord] = useState<StoredExamRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

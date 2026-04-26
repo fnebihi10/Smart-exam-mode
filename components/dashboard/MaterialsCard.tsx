@@ -14,7 +14,6 @@ import {
   X,
   Eye,
 } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
 import {
@@ -23,6 +22,7 @@ import {
   listLectureFiles,
   type LectureFileRecord,
 } from '@/utils/lectureFiles'
+import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 const copy = {
   en: {
@@ -103,7 +103,7 @@ export default function MaterialsCard() {
   const { user } = useAuth()
   const { locale } = useAppLocale()
   const t = copy[locale]
-  const supabase = createClient()
+  const supabase = useSupabaseBrowserClient()
 
   const [files, setFiles] = useState<LectureFileRecord[]>([])
   const [uploading, setUploading] = useState(false)

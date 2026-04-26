@@ -4,15 +4,16 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Mail, User } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 import AuthShell from '@/components/auth/AuthShell'
 import { useAuthLocale } from '@/components/auth/useAuthLocale'
+import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 const copy = {
   en: {
     badge: 'Create Account',
     title: 'A sharper signup flow, centered and clean.',
-    description: 'No split layout, no filler panel, just a polished authentication screen with a stronger visual structure.',
+    description:
+      'No split layout, no filler panel, just a polished authentication screen with a stronger visual structure.',
     invalidName: 'Enter your full name.',
     invalidEmail: 'Enter a valid email address.',
     invalidPassword: 'Password must be at least 6 characters.',
@@ -37,29 +38,30 @@ const copy = {
   },
   sq: {
     badge: 'Krijo Llogari',
-    title: 'Një regjistrim më i pastër, i përqendruar dhe i rregullt.',
-    description: 'Pa split layout, pa panel anësor të panevojshëm, vetëm një auth screen i strukturuar mirë dhe më profesional.',
-    invalidName: 'Shkruaj emrin tënd të plotë.',
-    invalidEmail: 'Shkruaj një email të vlefshëm.',
-    invalidPassword: 'Fjalëkalimi duhet të ketë të paktën 6 karaktere.',
-    mismatch: 'Fjalëkalimet nuk përputhen.',
-    name: 'Emri i plotë',
+    title: 'Nje regjistrim me i paster, i perqendruar dhe i rregullt.',
+    description:
+      'Pa split layout, pa panel anesor te panevojshem, vetem nje auth screen i strukturuar mire dhe me profesional.',
+    invalidName: 'Shkruaj emrin tend te plote.',
+    invalidEmail: 'Shkruaj nje email te vlefshem.',
+    invalidPassword: 'Fjalekalimi duhet te kete te pakten 6 karaktere.',
+    mismatch: 'Fjalekalimet nuk perputhen.',
+    name: 'Emri i plote',
     email: 'Email',
-    password: 'Fjalëkalimi',
-    confirmPassword: 'Konfirmo fjalëkalimin',
+    password: 'Fjalekalimi',
+    confirmPassword: 'Konfirmo fjalekalimin',
     namePlaceholder: 'p.sh. Arta Berisha',
     emailPlaceholder: 'emri@email.com',
     passwordPlaceholder: 'Minimumi 6 karaktere',
-    confirmPlaceholder: 'Përsërite fjalëkalimin',
+    confirmPlaceholder: 'Perserite fjalekalimin',
     submit: 'Krijo llogari',
-    loading: 'Duke krijuar llogarinë...',
-    haveAccount: 'Ke tashmë llogari?',
+    loading: 'Duke krijuar llogarine...',
+    haveAccount: 'Ke tashme llogari?',
     signIn: 'Hyr',
     strength: 'Forca',
-    weak: 'E dobët',
+    weak: 'E dobet',
     medium: 'Mesatare',
-    strong: 'E fortë',
-    verifyNotice: 'Konfirmo email-in pas regjistrimit dhe më pas hyr.',
+    strong: 'E forte',
+    verifyNotice: 'Konfirmo email-in pas regjistrimit dhe me pas hyr.',
   },
 } as const
 
@@ -75,7 +77,7 @@ export default function SignUp() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useSupabaseBrowserClient()
 
   const strength = useMemo(() => {
     let score = 0
@@ -142,7 +144,10 @@ export default function SignUp() {
       footer={
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {t.haveAccount}{' '}
-          <Link href="/login" className="font-semibold text-[var(--accent)] transition hover:opacity-80">
+          <Link
+            href="/login"
+            className="font-semibold text-[var(--accent)] transition hover:opacity-80"
+          >
             {t.signIn}
           </Link>
         </p>
@@ -210,7 +215,11 @@ export default function SignUp() {
               className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-900 dark:hover:text-white"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
 
@@ -230,7 +239,9 @@ export default function SignUp() {
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {t.strength}:{' '}
-                <span className="font-medium text-slate-700 dark:text-slate-200">{strengthLabel}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-200">
+                  {strengthLabel}
+                </span>
               </p>
             </div>
           )}
@@ -256,7 +267,11 @@ export default function SignUp() {
               className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-900 dark:hover:text-white"
               aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
             >
-              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showConfirmPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
         </div>

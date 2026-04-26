@@ -4,15 +4,16 @@ import Link from 'next/link'
 import { Suspense, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, ArrowRight, CheckCircle2, Eye, EyeOff, Lock, Mail } from 'lucide-react'
-import { createClient } from '@/utils/supabase/client'
 import AuthShell from '@/components/auth/AuthShell'
 import { useAuthLocale } from '@/components/auth/useAuthLocale'
+import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 const copy = {
   en: {
     badge: 'Welcome Back',
     title: 'Sign in without the visual noise.',
-    description: 'A cleaner login flow with a centered layout, stronger structure, and support for both light and dark mode.',
+    description:
+      'A cleaner login flow with a centered layout, stronger structure, and support for both light and dark mode.',
     successFallback: 'Your password was updated. You can sign in now.',
     invalidEmail: 'Enter a valid email address.',
     invalidPassword: 'Password must be at least 6 characters.',
@@ -28,20 +29,21 @@ const copy = {
     createAccount: 'Create one',
   },
   sq: {
-    badge: 'Mirë se u ktheve',
-    title: 'Hyr pa zhurmë vizuale.',
-    description: 'Një hyrje më e pastër, me layout të përqendruar, hierarki më të fortë dhe mbështetje për light dhe dark mode.',
-    successFallback: 'Fjalëkalimi u përditësua. Tani mund të hysh.',
-    invalidEmail: 'Shkruaj një email të vlefshëm.',
-    invalidPassword: 'Fjalëkalimi duhet të ketë të paktën 6 karaktere.',
-    invalidCredentials: 'Kredencialet nuk janë të sakta.',
+    badge: 'Mire se u ktheve',
+    title: 'Hyr pa zhurme vizuale.',
+    description:
+      'Nje hyrje me e paster, me layout te perqendruar, hierarki me te forte dhe mbeshtetje per light dhe dark mode.',
+    successFallback: 'Fjalekalimi u perditesua. Tani mund te hysh.',
+    invalidEmail: 'Shkruaj nje email te vlefshem.',
+    invalidPassword: 'Fjalekalimi duhet te kete te pakten 6 karaktere.',
+    invalidCredentials: 'Kredencialet nuk jane te sakta.',
     email: 'Email',
-    password: 'Fjalëkalimi',
+    password: 'Fjalekalimi',
     emailPlaceholder: 'emri@email.com',
-    passwordPlaceholder: 'Shkruaj fjalëkalimin',
-    forgotPassword: 'Harrove fjalëkalimin?',
+    passwordPlaceholder: 'Shkruaj fjalekalimin',
+    forgotPassword: 'Harrove fjalekalimin?',
     submit: 'Hyr',
-    loading: 'Duke hyrë...',
+    loading: 'Duke hyre...',
     noAccount: 'Nuk ke llogari?',
     createAccount: 'Krijoje',
   },
@@ -58,7 +60,7 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const message = searchParams.get('message')
-  const supabase = createClient()
+  const supabase = useSupabaseBrowserClient()
 
   const resolvedMessage = useMemo(() => {
     if (!message) return ''
@@ -88,7 +90,11 @@ function LoginForm() {
     })
 
     if (authError) {
-      setError(authError.message === 'Invalid login credentials' ? t.invalidCredentials : authError.message)
+      setError(
+        authError.message === 'Invalid login credentials'
+          ? t.invalidCredentials
+          : authError.message
+      )
       setLoading(false)
       return
     }
@@ -106,7 +112,10 @@ function LoginForm() {
       footer={
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {t.noAccount}{' '}
-          <Link href="/signup" className="font-semibold text-[var(--accent)] transition hover:opacity-80">
+          <Link
+            href="/signup"
+            className="font-semibold text-[var(--accent)] transition hover:opacity-80"
+          >
             {t.createAccount}
           </Link>
         </p>
@@ -151,7 +160,10 @@ function LoginForm() {
             <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
               {t.password}
             </label>
-            <Link href="/forgot-password" className="text-sm font-medium text-[var(--accent)] transition hover:opacity-80">
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-[var(--accent)] transition hover:opacity-80"
+            >
               {t.forgotPassword}
             </Link>
           </div>
@@ -171,12 +183,20 @@ function LoginForm() {
               className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-900 dark:hover:text-white"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
         </div>
 
-        <button type="submit" disabled={loading} className="primary-button w-full justify-center py-3.5 text-sm">
+        <button
+          type="submit"
+          disabled={loading}
+          className="primary-button w-full justify-center py-3.5 text-sm"
+        >
           {loading ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />

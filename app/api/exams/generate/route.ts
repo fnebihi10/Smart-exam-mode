@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { getLectureContext } from '@/utils/fileParsing'
+import {
+  createOpenRouterClient,
+  getOpenRouterModel,
+  hasOpenRouterApiKey,
+} from '@/utils/openrouter'
 import { createClient as createSupabaseServerClient } from '@/utils/supabase/server'
 import {
   type ExamGenerationRequest,
@@ -9,17 +13,8 @@ import {
   type GeneratedExam,
 } from '@/types/exams'
 
-const client = new OpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.OPENROUTER_API_KEY,
-  defaultHeaders: {
-    'HTTP-Referer': 'http://localhost:3000',
-    'X-Title': 'Smart Exam Mode',
-  },
-})
-
-const examModel =
-  process.env.OPENROUTER_EXAM_MODEL?.trim() || 'openai/gpt-4o-mini'
+const client = createOpenRouterClient()
+const examModel = getOpenRouterModel('OPENROUTER_EXAM_MODEL')
 
 const questionTypeOrder: ExamQuestionType[] = [
   'multiple_choice',
@@ -424,7 +419,7 @@ const generateExam = async (
 
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.OPENROUTER_API_KEY) {
+    if (!hasOpenRouterApiKey()) {
       return NextResponse.json(
         { error: 'Server is missing OPENROUTER_API_KEY. Please configure it in Vercel.' },
         { status: 500 }
