@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import AuthShell from '@/components/auth/AuthShell'
@@ -59,9 +59,9 @@ export default function ResetPassword() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resetLinkError, setResetLinkError] = useState('')
   const { session, loading: authLoading, updatePassword } = useAuth()
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   const strength = useMemo(() => {
     let score = 0
@@ -75,17 +75,19 @@ export default function ResetPassword() {
 
   const strengthLabel = strength <= 1 ? t.weak : strength <= 3 ? t.medium : t.strong
 
-  const resetLinkError = useMemo(() => {
-    const errorCode = searchParams.get('error_code')
-    const errorDescription = searchParams.get('error_description')
-    const message = searchParams.get('message')
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const errorCode = params.get('error_code')
+    const errorDescription = params.get('error_description')
+    const message = params.get('message')
 
     if (errorCode === 'otp_expired') {
-      return 'This password reset link has expired or was already used. Request a new reset email and open the latest link.'
+      setResetLinkError('This password reset link has expired or was already used. Request a new reset email and open the latest link.')
+      return
     }
 
-    return errorDescription ?? message ?? ''
-  }, [searchParams])
+    setResetLinkError(errorDescription ?? message ?? '')
+  }, [])
 
   useEffect(() => {
     if (resetLinkError) {
