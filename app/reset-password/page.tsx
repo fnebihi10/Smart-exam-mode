@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import AuthShell from '@/components/auth/AuthShell'
@@ -59,8 +59,9 @@ export default function ResetPassword() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const { updatePassword } = useAuth()
+  const { session, loading: authLoading, updatePassword } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const strength = useMemo(() => {
     let score = 0
@@ -74,10 +75,33 @@ export default function ResetPassword() {
 
   const strengthLabel = strength <= 1 ? t.weak : strength <= 3 ? t.medium : t.strong
 
+  const resetLinkError = useMemo(() => {
+    const errorCode = searchParams.get('error_code')
+    const errorDescription = searchParams.get('error_description')
+    const message = searchParams.get('message')
+
+    if (errorCode === 'otp_expired') {
+      return 'This password reset link has expired or was already used. Request a new reset email and open the latest link.'
+    }
+
+    return errorDescription ?? message ?? ''
+  }, [searchParams])
+
+  useEffect(() => {
+    if (resetLinkError) {
+      setError(resetLinkError)
+    }
+  }, [resetLinkError])
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     setError('')
     setSuccess('')
+
+    if (!session) {
+      setError(resetLinkError || 'This password reset session is missing or has expired. Request a new reset email and try again.')
+      return
+    }
 
     if (password.length < 6) {
       setError(t.invalidPassword)
@@ -209,7 +233,7 @@ export default function ResetPassword() {
 
           <button
             type="submit"
-            disabled={loading || !password || password !== confirmPassword}
+            disabled={loading || authLoading || !password || password !== confirmPassword}
             className="primary-button w-full justify-center py-3.5 text-sm"
           >
             {loading ? (

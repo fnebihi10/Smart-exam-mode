@@ -39,6 +39,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
+  if (type === 'recovery') {
+    return NextResponse.redirect(redirectUrl)
+  }
+
   redirectUrl.searchParams.set('message', 'Email confirmed. You can sign in now.')
   return NextResponse.redirect(redirectUrl)
 }
