@@ -14,6 +14,7 @@ type AuthShellProps = {
   title: string
   description: string
   footer?: React.ReactNode
+  variant?: 'default' | 'compact'
 }
 
 export default function AuthShell({
@@ -24,9 +25,12 @@ export default function AuthShell({
   title,
   description,
   footer,
+  variant = 'default',
 }: AuthShellProps) {
+  const isCompact = variant === 'compact'
+
   return (
-    <div className="relative min-h-screen overflow-hidden px-4 py-3 sm:px-6 lg:h-screen lg:overflow-hidden lg:px-8">
+    <div className={`relative min-h-screen overflow-hidden px-4 sm:px-6 lg:px-8 ${isCompact ? 'py-2 lg:py-3' : 'py-3 lg:py-4'}`}>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(15,118,110,0.22),transparent_46%)] dark:bg-[radial-gradient(circle_at_top,rgba(45,212,191,0.16),transparent_42%)]" />
       <div className="pointer-events-none absolute left-[-10rem] top-1/3 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl dark:bg-amber-300/10" />
       <div className="pointer-events-none absolute bottom-[-6rem] right-[-5rem] h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl dark:bg-emerald-300/10" />
@@ -48,19 +52,23 @@ export default function AuthShell({
         </div>
       </div>
 
-      <div className="relative mx-auto mt-3 flex max-w-5xl justify-center lg:mt-4 lg:h-[calc(100vh-6.5rem)] lg:items-start">
-        <section className="surface w-full max-w-[34rem] p-5 sm:p-6 lg:p-7">
+      <div className={`relative mx-auto flex max-w-5xl justify-center ${isCompact ? 'mt-2 lg:mt-2' : 'mt-3 lg:mt-4'}`}>
+        <section className={`surface w-full max-w-[34rem] ${isCompact ? 'p-5 sm:p-6 lg:p-6' : 'p-5 sm:p-6 lg:p-7'}`}>
           <span className="eyebrow">{badge}</span>
-          <h1 className="mt-4 text-[1.8rem] font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[2.15rem]">
+          <h1 className={`font-semibold tracking-tight text-slate-900 dark:text-white ${isCompact ? 'mt-3 text-[1.7rem] sm:text-[1.95rem]' : 'mt-4 text-[1.8rem] sm:text-[2.15rem]'}`}>
             {title}
           </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
+          <p className={`text-sm leading-6 text-slate-500 dark:text-slate-400 ${isCompact ? 'mt-2' : 'mt-3'}`}>
             {description}
           </p>
 
-          <div className="mt-5">{children}</div>
+          <div className={isCompact ? 'mt-4' : 'mt-5'}>{children}</div>
 
-          {footer ? <div className="mt-5 border-t border-[var(--border)] pt-4">{footer}</div> : null}
+          {footer ? (
+            <div className={`border-t border-[var(--border)] ${isCompact ? 'mt-4 pt-3' : 'mt-5 pt-4'}`}>
+              {footer}
+            </div>
+          ) : null}
         </section>
       </div>
     </div>

@@ -73,6 +73,7 @@ export default function ForgotPassword() {
       badge={t.badge}
       title={t.title}
       description={t.description}
+      variant="compact"
       footer={
         <Link href="/login" className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent)] transition hover:opacity-80">
           <ArrowLeft className="h-4 w-4" />
