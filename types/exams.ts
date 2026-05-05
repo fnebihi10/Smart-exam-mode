@@ -85,6 +85,12 @@ export interface ExamAttemptAnswer {
   answer: ExamAnswerValue
 }
 
+export interface OpenEndedGrade {
+  questionId: string
+  earnedPoints: number
+  feedback: string
+}
+
 export interface ExamAttemptPayload {
   answers: ExamAttemptAnswer[]
   objectiveScore: number
@@ -93,6 +99,7 @@ export interface ExamAttemptPayload {
   totalQuestions: number
   violations: string[]
   submittedAt: string
+  openEndedGrades?: OpenEndedGrade[]
 }
 
 export interface StoredExamAttemptRecord {

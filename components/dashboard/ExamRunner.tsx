@@ -24,6 +24,8 @@ import {
   type ExamAttemptPayload,
   type ExamAttemptStatus,
   type GeneratedExam,
+  type OpenEndedGrade,
+  type OpenEndedQuestion,
   type StoredExamRecord,
 } from '@/types/exams'
 import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
@@ -52,12 +54,12 @@ const copy = {
     next: 'Next',
     question: 'Question',
     questions: 'Questions',
-    objectiveScore: 'Objective score',
+    objectiveScore: 'Total score',
     answered: 'Answered',
     violations: 'Violations',
     timeLeft: 'Time left',
     submitNotice:
-      'Multiple choice and fill-in questions are scored automatically. Open-ended answers remain for manual review.',
+      'Multiple choice, fill-in, and open-ended answers are scored automatically. Open-ended answers are reviewed by AI.',
     violationBadge: 'Violation monitor',
     violationLimit: 'Maximum 3 violations',
     escViolation: 'Escape key was pressed during the exam.',
@@ -68,6 +70,8 @@ const copy = {
       'The exam was submitted locally, but saving the attempt in the database failed.',
     saveSetupMissing:
       'Exam answers were submitted, but the exam_attempts table is not set up in Supabase yet.',
+    gradingFailed:
+      'AI grading for open-ended answers failed, so those answers were saved with 0 open-ended points.',
     resultTitle: 'Session complete',
     resultBody:
       'Your answers are locked. Review your outcome and return when you are ready.',
@@ -75,7 +79,7 @@ const copy = {
     takeAnother: 'Back to builder',
     answeredCount: 'Answered questions',
     violationsCount: 'Violation count',
-    manualReview: 'Open-ended answers need manual review.',
+    manualReview: 'Open-ended answers were reviewed by AI and included in the total score.',
     rulesAcknowledge: 'I understand the rules and I am ready to begin.',
     answerPlaceholder: 'Type your answer...',
     responsePlaceholder: 'Write your response...',
@@ -88,7 +92,7 @@ const copy = {
       'Warning: focus loss, Escape, or tab switching will add violations. Three violations cause auto-submit.',
     reviewTitle: 'Answer review',
     reviewBody:
-      'See how the objective score was calculated and compare your response with the expected answer.',
+      'See how your score was calculated and compare your response with the expected answer.',
     yourAnswer: 'Your answer',
     correctAnswerLabel: 'Correct answer',
     acceptedAnswersLabel: 'Accepted answers',
@@ -97,9 +101,12 @@ const copy = {
     gradingNotesLabel: 'Grading notes',
     earnedPoints: 'Points earned',
     notAnswered: 'No answer submitted.',
+    noOpenEndedAnswerFeedback: 'No answer was submitted for this open-ended question.',
     correct: 'Correct',
     incorrect: 'Incorrect',
-    pendingReview: 'Manual review',
+    pendingReview: 'AI review',
+    partial: 'Partial',
+    aiFeedback: 'AI feedback',
     noViolations: 'No violations recorded.',
     attemptStorageHint:
       'If you want attempts saved in Supabase, run the exam_attempts SQL block too.',
@@ -125,12 +132,12 @@ const copy = {
     next: 'Tjeter',
     question: 'Pyetja',
     questions: 'Pyetje',
-    objectiveScore: 'Piket objektive',
+    objectiveScore: 'Piket totale',
     answered: 'Te pergjigjura',
     violations: 'Shkelje',
     timeLeft: 'Koha e mbetur',
     submitNotice:
-      'Pyetjet me alternativa dhe plotesimet vleresohen automatikisht. Pergjigjet e hapura mbeten per vleresim manual.',
+      'Pyetjet me alternativa, plotesimet dhe pergjigjet e hapura vleresohen automatikisht. Pergjigjet e hapura i kontrollon AI.',
     violationBadge: 'Monitori i shkeljeve',
     violationLimit: 'Maksimumi 3 shkelje',
     escViolation: 'U shtyp tasti Escape gjate provimit.',
@@ -141,6 +148,8 @@ const copy = {
       'Provimi u dergua lokalisht, por ruajtja e tentatives ne databaze deshtoi.',
     saveSetupMissing:
       'Pergjigjet e provimit u derguan, por tabela exam_attempts ne Supabase nuk eshte aktive ende.',
+    gradingFailed:
+      'Vleresimi me AI per pergjigjet e hapura deshtoi, prandaj ato u ruajten me 0 pike.',
     resultTitle: 'Sesioni perfundoi',
     resultBody:
       'Pergjigjet jane mbyllur. Shiko rezultatin dhe kthehu kur te jesh gati.',
@@ -148,7 +157,7 @@ const copy = {
     takeAnother: 'Kthehu te krijuesi',
     answeredCount: 'Pyetje te pergjigjura',
     violationsCount: 'Numri i shkeljeve',
-    manualReview: 'Pergjigjet e hapura kane nevoje per vleresim manual.',
+    manualReview: 'Pergjigjet e hapura u vleresuan nga AI dhe u perfshine ne piket totale.',
     rulesAcknowledge: 'I kuptoj rregullat dhe jam gati te filloj.',
     answerPlaceholder: 'Shkruaj pergjigjen tende...',
     responsePlaceholder: 'Shkruaj pergjigjen e plote...',
@@ -161,7 +170,7 @@ const copy = {
       'Paralajmerim: humbja e fokusit, Escape ose nderrimi i tab-it shtojne shkelje. Tre shkelje e dergojne provimin automatikisht.',
     reviewTitle: 'Rishikimi i pergjigjeve',
     reviewBody:
-      'Shiko si u llogarit rezultati objektiv dhe krahaso pergjigjen tende me pergjigjen e pritur.',
+      'Shiko si u llogariten piket dhe krahaso pergjigjen tende me pergjigjen e pritur.',
     yourAnswer: 'Pergjigjja jote',
     correctAnswerLabel: 'Pergjigjja e sakte',
     acceptedAnswersLabel: 'Pergjigje te pranuara',
@@ -170,9 +179,12 @@ const copy = {
     gradingNotesLabel: 'Shenime vleresimi',
     earnedPoints: 'Piket e marra',
     notAnswered: 'Nuk eshte derguar pergjigje.',
+    noOpenEndedAnswerFeedback: 'Nuk u dergua pergjigje per kete pyetje te hapur.',
     correct: 'Sakte',
     incorrect: 'Gabim',
-    pendingReview: 'Vleresim manual',
+    pendingReview: 'Vleresim AI',
+    partial: 'Pjesshem',
+    aiFeedback: 'Vleresimi nga AI',
     noViolations: 'Nuk ka shkelje te regjistruara.',
     attemptStorageHint:
       'Nese do qe tentativat te ruhen ne Supabase, ekzekuto edhe bllokun SQL te exam_attempts.',
@@ -197,6 +209,64 @@ const isAttemptTableMissing = (message: string) => {
       normalized.includes('could not find the table')
     )
   )
+}
+
+const safeReadJson = async (response: Response) => {
+  try {
+    return (await response.json()) as unknown
+  } catch {
+    return null
+  }
+}
+
+const gradeOpenEndedAnswers = async (
+  questions: Array<OpenEndedQuestion & { userAnswer: string }>,
+  language: 'en' | 'sq',
+  noAnswerFeedback: string
+) => {
+  if (!questions.length) {
+    return [] as OpenEndedGrade[]
+  }
+
+  const unansweredGrades = questions
+    .filter((question) => !question.userAnswer.trim())
+    .map((question) => ({
+      questionId: question.id,
+      earnedPoints: 0,
+      feedback: noAnswerFeedback,
+    }))
+
+  const answeredQuestions = questions.filter((question) => question.userAnswer.trim())
+
+  if (!answeredQuestions.length) {
+    return unansweredGrades
+  }
+
+  const response = await fetch('/api/exams/grade-open-ended', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      language,
+      questions: answeredQuestions.map((question) => ({
+        questionId: question.id,
+        prompt: question.prompt,
+        points: question.points,
+        sampleAnswer: question.sampleAnswer,
+        gradingNotes: question.gradingNotes,
+        userAnswer: question.userAnswer,
+      })),
+    }),
+  })
+
+  const data = (await safeReadJson(response)) as
+    | { error?: string; grades?: OpenEndedGrade[] }
+    | null
+
+  if (!response.ok) {
+    throw new Error(data?.error || 'AI grading failed.')
+  }
+
+  return [...unansweredGrades, ...(data?.grades ?? [])]
 }
 
 export default function ExamRunner({
@@ -274,6 +344,9 @@ export default function ExamRunner({
     if (!exam || !result) return []
 
     const answerMap = new Map(result.payload.answers.map((entry) => [entry.questionId, entry.answer]))
+    const openEndedGradeMap = new Map(
+      (result.payload.openEndedGrades ?? []).map((grade) => [grade.questionId, grade])
+    )
 
     return exam.questions.map((question) => {
       const userAnswer = answerMap.get(question.id) || ''
@@ -318,17 +391,25 @@ export default function ExamRunner({
         }
       }
 
+      const grade = openEndedGradeMap.get(question.id)
+      const earnedPoints = grade?.earnedPoints ?? 0
+
       return {
         id: question.id,
         type: question.type,
         prompt: question.prompt,
         points: question.points,
-        status: 'pending',
-        earnedPoints: 0,
+        status:
+          earnedPoints >= question.points
+            ? 'correct'
+            : earnedPoints > 0
+              ? 'partial'
+              : 'incorrect',
+        earnedPoints,
         userAnswer,
         correctAnswer: '',
         acceptedAnswers: [] as string[],
-        explanation: '',
+        explanation: grade?.feedback ?? '',
         aiSampleAnswer: question.sampleAnswer,
         gradingNotes: question.gradingNotes,
       }
@@ -349,36 +430,61 @@ export default function ExamRunner({
         answer: answers[question.id] || '',
       }))
 
-      let objectiveScore = 0
-      let objectiveMaxScore = 0
+      let totalScore = 0
+      let totalMaxScore = 0
+      let openEndedGrades: OpenEndedGrade[] = []
+      const openEndedQuestions: Array<OpenEndedQuestion & { userAnswer: string }> = []
 
       exam.questions.forEach((question) => {
         const answer = normalizeText(answers[question.id] || '')
+        totalMaxScore += question.points
 
         if (question.type === 'multiple_choice') {
-          objectiveMaxScore += question.points
           if (answer && answer === normalizeText(question.correctAnswer)) {
-            objectiveScore += question.points
+            totalScore += question.points
           }
         }
 
         if (question.type === 'fill_in_blank') {
-          objectiveMaxScore += question.points
           const accepted = [question.correctAnswer, ...question.acceptableAnswers].map(normalizeText)
           if (answer && accepted.includes(answer)) {
-            objectiveScore += question.points
+            totalScore += question.points
           }
+        }
+
+        if (question.type === 'open_ended') {
+          openEndedQuestions.push({
+            ...question,
+            userAnswer: answers[question.id] || '',
+          })
         }
       })
 
+      try {
+        openEndedGrades = await gradeOpenEndedAnswers(
+          openEndedQuestions,
+          locale,
+          t.noOpenEndedAnswerFeedback
+        )
+        totalScore += openEndedGrades.reduce((sum, grade) => sum + grade.earnedPoints, 0)
+      } catch {
+        setSaveNotice(t.gradingFailed)
+        openEndedGrades = openEndedQuestions.map((question) => ({
+          questionId: question.id,
+          earnedPoints: 0,
+          feedback: t.gradingFailed,
+        }))
+      }
+
       const payload: ExamAttemptPayload = {
         answers: answersList,
-        objectiveScore,
-        objectiveMaxScore,
+        objectiveScore: totalScore,
+        objectiveMaxScore: totalMaxScore,
         answeredCount: answersList.filter((entry) => entry.answer.trim().length > 0).length,
         totalQuestions: exam.questions.length,
         violations: violationSnapshot ?? violations,
         submittedAt: new Date().toISOString(),
+        openEndedGrades,
       }
 
       try {
@@ -411,7 +517,20 @@ export default function ExamRunner({
         setResult({ status, payload })
       }
     },
-    [answers, exam, examRecord, submitted, supabase, t.saveFailed, t.saveSetupMissing, user, violations]
+    [
+      answers,
+      exam,
+      examRecord,
+      locale,
+      submitted,
+      supabase,
+      t.gradingFailed,
+      t.noOpenEndedAnswerFeedback,
+      t.saveFailed,
+      t.saveSetupMissing,
+      user,
+      violations,
+    ]
   )
 
   const registerViolation = useCallback(
@@ -637,6 +756,8 @@ export default function ExamRunner({
                 const statusStyles =
                   item.status === 'correct'
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : item.status === 'partial'
+                      ? 'border-amber-200 bg-amber-50 text-amber-700'
                     : item.status === 'incorrect'
                       ? 'border-rose-200 bg-rose-50 text-rose-700'
                       : 'border-amber-200 bg-amber-50 text-amber-700'
@@ -644,6 +765,8 @@ export default function ExamRunner({
                 const statusLabel =
                   item.status === 'correct'
                     ? t.correct
+                    : item.status === 'partial'
+                      ? t.partial
                     : item.status === 'incorrect'
                       ? t.incorrect
                       : t.pendingReview
@@ -703,6 +826,12 @@ export default function ExamRunner({
                         <div className="rounded-[24px] border border-slate-200 bg-white p-4">
                           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t.aiSampleAnswer}</p>
                           <p className="mt-3 text-sm leading-7 text-slate-800">{item.aiSampleAnswer}</p>
+                          {item.explanation && (
+                            <>
+                              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t.aiFeedback}</p>
+                              <p className="mt-2 text-sm leading-7 text-slate-700">{item.explanation}</p>
+                            </>
+                          )}
                           {item.gradingNotes.length > 0 && (
                             <>
                               <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t.gradingNotesLabel}</p>

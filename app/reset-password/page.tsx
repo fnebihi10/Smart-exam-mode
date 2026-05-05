@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -49,17 +49,34 @@ const copy = {
   },
 } as const
 
+const getInitialResetLinkError = () => {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const errorCode = params.get('error_code')
+  const errorDescription = params.get('error_description')
+  const message = params.get('message')
+
+  if (errorCode === 'otp_expired') {
+    return 'This password reset link has expired or was already used. Request a new reset email and open the latest link.'
+  }
+
+  return errorDescription ?? message ?? ''
+}
+
 export default function ResetPassword() {
   const { locale, setLocale } = useAuthLocale()
   const t = copy[locale]
+  const [resetLinkError] = useState(getInitialResetLinkError)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(resetLinkError)
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const [resetLinkError, setResetLinkError] = useState('')
   const { session, loading: authLoading, updatePassword } = useAuth()
   const router = useRouter()
 
@@ -74,26 +91,6 @@ export default function ResetPassword() {
   }, [password])
 
   const strengthLabel = strength <= 1 ? t.weak : strength <= 3 ? t.medium : t.strong
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const errorCode = params.get('error_code')
-    const errorDescription = params.get('error_description')
-    const message = params.get('message')
-
-    if (errorCode === 'otp_expired') {
-      setResetLinkError('This password reset link has expired or was already used. Request a new reset email and open the latest link.')
-      return
-    }
-
-    setResetLinkError(errorDescription ?? message ?? '')
-  }, [])
-
-  useEffect(() => {
-    if (resetLinkError) {
-      setError(resetLinkError)
-    }
-  }, [resetLinkError])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()

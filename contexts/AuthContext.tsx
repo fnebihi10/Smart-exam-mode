@@ -32,10 +32,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
+    let mounted = true
+
     // Get initial session (persistent session after refresh)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (!mounted) return
+
+      if (error) {
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+        setSession(null)
+        setUser(null)
+        setLoading(false)
+        return
+      }
+
       setSession(session)
       setUser(session?.user ?? null)
+      setLoading(false)
+    }).catch(async () => {
+      if (!mounted) return
+
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+      setSession(null)
+      setUser(null)
       setLoading(false)
     })
 
@@ -48,7 +67,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [supabase])
 
   const signOut = async () => {

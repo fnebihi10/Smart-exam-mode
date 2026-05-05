@@ -15,6 +15,8 @@ type AuthShellProps = {
   description: string
   footer?: React.ReactNode
   variant?: 'default' | 'compact'
+  size?: 'default' | 'wide'
+  align?: 'center' | 'start'
 }
 
 export default function AuthShell({
@@ -26,18 +28,25 @@ export default function AuthShell({
   description,
   footer,
   variant = 'default',
+  size = 'default',
+  align = 'center',
 }: AuthShellProps) {
   const isCompact = variant === 'compact'
+  const panelWidth = size === 'wide' ? 'max-w-[42rem]' : 'max-w-[34rem]'
+  const contentAlign =
+    align === 'start'
+      ? 'items-start pt-0 sm:pt-1'
+      : 'items-center pt-3'
 
   return (
-    <div className={`relative min-h-screen overflow-hidden px-4 sm:px-6 lg:px-8 ${isCompact ? 'py-2 lg:py-3' : 'py-3 lg:py-4'}`}>
+    <div className="relative grid h-dvh grid-rows-[auto_minmax(0,1fr)] overflow-hidden px-4 py-3 sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top,rgba(15,118,110,0.22),transparent_46%)] dark:bg-[radial-gradient(circle_at_top,rgba(45,212,191,0.16),transparent_42%)]" />
       <div className="pointer-events-none absolute left-[-10rem] top-1/3 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl dark:bg-amber-300/10" />
       <div className="pointer-events-none absolute bottom-[-6rem] right-[-5rem] h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl dark:bg-emerald-300/10" />
 
-      <div className="relative mx-auto flex max-w-5xl items-center justify-between gap-3">
-        <Link href="/" className="inline-flex items-center gap-3 rounded-full px-2 py-2">
-          <span className="icon-shell h-11 w-11 text-[var(--accent)]">
+      <div className="relative mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
+        <Link href="/" className="inline-flex items-center gap-3 rounded-full px-1 py-1">
+          <span className="icon-shell h-10 w-10 text-[var(--accent)]">
             <GraduationCap className="h-5 w-5" />
           </span>
           <span>
@@ -52,20 +61,20 @@ export default function AuthShell({
         </div>
       </div>
 
-      <div className={`relative mx-auto flex max-w-5xl justify-center ${isCompact ? 'mt-2 lg:mt-2' : 'mt-3 lg:mt-4'}`}>
-        <section className={`surface w-full max-w-[34rem] ${isCompact ? 'p-5 sm:p-6 lg:p-6' : 'p-5 sm:p-6 lg:p-7'}`}>
+      <div className={`relative mx-auto flex min-h-0 w-full max-w-5xl justify-center ${contentAlign}`}>
+        <section className={`surface w-full ${panelWidth} max-h-full ${isCompact ? 'p-4' : 'p-5 sm:p-6'}`}>
           <span className="eyebrow">{badge}</span>
-          <h1 className={`font-semibold tracking-tight text-slate-900 dark:text-white ${isCompact ? 'mt-3 text-[1.7rem] sm:text-[1.95rem]' : 'mt-4 text-[1.8rem] sm:text-[2.15rem]'}`}>
+          <h1 className={`max-w-2xl font-semibold tracking-tight text-slate-900 dark:text-white ${isCompact ? 'mt-1.5 text-[1.5rem] leading-tight sm:text-[1.65rem]' : 'mt-3 text-[1.7rem] leading-tight sm:text-[2rem]'}`}>
             {title}
           </h1>
-          <p className={`text-sm leading-6 text-slate-500 dark:text-slate-400 ${isCompact ? 'mt-2' : 'mt-3'}`}>
+          <p className={`max-w-2xl text-sm leading-5 text-slate-500 dark:text-slate-400 ${isCompact ? 'mt-1' : 'mt-2'}`}>
             {description}
           </p>
 
-          <div className={isCompact ? 'mt-4' : 'mt-5'}>{children}</div>
+          <div className={isCompact ? 'mt-3' : 'mt-5'}>{children}</div>
 
           {footer ? (
-            <div className={`border-t border-[var(--border)] ${isCompact ? 'mt-4 pt-3' : 'mt-5 pt-4'}`}>
+            <div className={`border-t border-[var(--border)] ${isCompact ? 'mt-2 pt-2' : 'mt-4 pt-3'}`}>
               {footer}
             </div>
           ) : null}
