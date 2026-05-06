@@ -296,6 +296,7 @@ export default function ExamRunner({
     payload: ExamAttemptPayload
   } | null>(null)
   const lastViolationAtRef = useRef(0)
+  const submitStartedRef = useRef(false)
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -418,8 +419,9 @@ export default function ExamRunner({
 
   const submitExam = useCallback(
     async (status: ExamAttemptStatus, violationSnapshot?: string[]) => {
-      if (!exam || !examRecord || !user || submitted) return
+      if (!exam || !examRecord || !user || submitted || submitStartedRef.current) return
 
+      submitStartedRef.current = true
       setSubmitting(true)
       setIsPaused(false)
       setPauseReason('')
@@ -536,7 +538,13 @@ export default function ExamRunner({
   const registerViolation = useCallback(
     (reason: string) => {
       const now = Date.now()
-      if (now - lastViolationAtRef.current < 1500 || submitted || !started || isPaused) {
+      if (
+        now - lastViolationAtRef.current < 1500 ||
+        submitted ||
+        submitStartedRef.current ||
+        !started ||
+        isPaused
+      ) {
         return
       }
 
@@ -544,15 +552,14 @@ export default function ExamRunner({
       setIsPaused(true)
       setPauseReason(reason)
 
-      setViolations((current) => {
-        const next = [...current, reason]
-        if (next.length >= VIOLATION_LIMIT) {
-          void submitExam('auto_submitted', next)
-        }
-        return next
-      })
+      const nextViolations = [...violations, reason]
+      setViolations(nextViolations)
+
+      if (nextViolations.length >= VIOLATION_LIMIT) {
+        void submitExam('auto_submitted', nextViolations)
+      }
     },
-    [isPaused, started, submitExam, submitted]
+    [isPaused, started, submitExam, submitted, violations]
   )
 
   useEffect(() => {
@@ -620,6 +627,7 @@ export default function ExamRunner({
   }, [isPaused, started, submitExam, submitted])
 
   const startExam = async () => {
+    submitStartedRef.current = false
     setStarted(true)
     setSubmitted(false)
     setCurrentIndex(0)

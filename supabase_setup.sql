@@ -26,6 +26,8 @@ CREATE POLICY "Users can insert their own lecture files" ON public.lecture_files
 CREATE POLICY "Users can delete their own lecture files" ON public.lecture_files
     FOR DELETE USING (auth.uid() = user_id);
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.lecture_files TO authenticated;
+
 -- Storage configuration is recommended to be done in the Supabase Dashboard,
 -- but here are the SQL policies for the 'lectures' bucket if you use the SQL editor:
 -- DO NOT RUN the following if you prefer GUI configuration.
@@ -106,3 +108,32 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.exam_attempts TO authentica
 GRANT USAGE ON SCHEMA public TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.exams TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.exam_attempts TO anon;
+
+-- 4. Study Tasks Table
+CREATE TABLE IF NOT EXISTS public.tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own tasks" ON public.tasks
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own tasks" ON public.tasks
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own tasks" ON public.tasks
+    FOR UPDATE USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own tasks" ON public.tasks
+    FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS tasks_user_created_at_idx
+    ON public.tasks (user_id, created_at DESC);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.tasks TO authenticated;

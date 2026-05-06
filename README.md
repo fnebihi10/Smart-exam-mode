@@ -55,6 +55,7 @@ npm install
 - `lecture_files`
 - `exams`
 - `exam_attempts`
+- `tasks`
 
 4. Make sure the `lectures` storage bucket exists in Supabase.
 

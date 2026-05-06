@@ -421,7 +421,6 @@ export default function ExamBuilder() {
   const [attemptsError, setAttemptsError] = useState('')
   const [deletingExamId, setDeletingExamId] = useState<string | null>(null)
   const [deletingAttemptId, setDeletingAttemptId] = useState<string | null>(null)
-  const [resultsExamFilter, setResultsExamFilter] = useState<string>('all')
 
   useEffect(() => {
     setConfig((current) => ({ ...current, language: locale }))
@@ -835,9 +834,6 @@ export default function ExamBuilder() {
 
       setPublishedExams((current) => current.filter((entry) => entry.id !== exam.id))
       setAttempts((current) => current.filter((entry) => entry.exam_id !== exam.id))
-      if (resultsExamFilter === exam.id) {
-        setResultsExamFilter('all')
-      }
       setSuccess(t.deleteSuccess)
     } catch (err: unknown) {
       setError(getErrorMessage(err, t.deleteError))
@@ -889,14 +885,6 @@ export default function ExamBuilder() {
   const publishedExamMap = useMemo(
     () => new Map(publishedExams.map((exam) => [exam.id, exam])),
     [publishedExams]
-  )
-
-  const filteredAttempts = useMemo(
-    () =>
-      resultsExamFilter === 'all'
-        ? attempts
-        : attempts.filter((attempt) => attempt.exam_id === resultsExamFilter),
-    [attempts, resultsExamFilter]
   )
 
   if (loading) {
@@ -1445,7 +1433,6 @@ export default function ExamBuilder() {
                   <button
                     type="button"
                     onClick={() => {
-                      setResultsExamFilter(exam.id)
                       setActiveView('results')
                     }}
                     className="secondary-button w-full justify-center"
@@ -1491,29 +1478,10 @@ export default function ExamBuilder() {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => setResultsExamFilter('all')}
-                  className={`secondary-button px-4 py-2 ${
-                    resultsExamFilter === 'all'
-                      ? 'border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                      : ''
-                  }`}
+                  className="secondary-button border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] px-4 py-2 text-[var(--accent)]"
                 >
                   {t.filterAll}
                 </button>
-                {publishedExams.map((exam) => (
-                  <button
-                    key={`filter-${exam.id}`}
-                    type="button"
-                    onClick={() => setResultsExamFilter(exam.id)}
-                    className={`secondary-button px-4 py-2 ${
-                      resultsExamFilter === exam.id
-                        ? 'border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                        : ''
-                    }`}
-                  >
-                    {exam.title}
-                  </button>
-                ))}
               </div>
             </div>
           </div>
@@ -1526,13 +1494,13 @@ export default function ExamBuilder() {
             <div className="p-10 text-center text-sm text-rose-600 dark:text-rose-300">
               {attemptsError}
             </div>
-          ) : filteredAttempts.length === 0 ? (
+          ) : attempts.length === 0 ? (
             <div className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
               {t.noAttempts}
             </div>
           ) : (
             <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
-              {filteredAttempts.map((attempt) => {
+              {attempts.map((attempt) => {
                 const exam = publishedExamMap.get(attempt.exam_id)
 
                 return (
