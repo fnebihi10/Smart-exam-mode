@@ -11,18 +11,35 @@ const getSafeNextPath = (value: string | null) => {
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
   const tokenHash = requestUrl.searchParams.get('token_hash')
   const type = requestUrl.searchParams.get('type')
   const next = getSafeNextPath(requestUrl.searchParams.get('next'))
 
   const redirectUrl = new URL(next, requestUrl.origin)
+  const supabase = await createClient()
+
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (error) {
+      redirectUrl.searchParams.set('message', error.message)
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    if (next === '/reset-password') {
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    redirectUrl.searchParams.set('message', 'Email confirmed. You can sign in now.')
+    return NextResponse.redirect(redirectUrl)
+  }
 
   if (!tokenHash || !type) {
     redirectUrl.searchParams.set('message', 'Invalid or expired confirmation link.')
     return NextResponse.redirect(redirectUrl)
   }
 
-  const supabase = await createClient()
   const { error } = await supabase.auth.verifyOtp({
     token_hash: tokenHash,
     type: type as

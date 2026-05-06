@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -49,12 +49,7 @@ const copy = {
   },
 } as const
 
-const getInitialResetLinkError = () => {
-  if (typeof window === 'undefined') {
-    return ''
-  }
-
-  const params = new URLSearchParams(window.location.search)
+const getResetLinkError = (params: URLSearchParams) => {
   const errorCode = params.get('error_code')
   const errorDescription = params.get('error_description')
   const message = params.get('message')
@@ -69,7 +64,7 @@ const getInitialResetLinkError = () => {
 export default function ResetPassword() {
   const { locale, setLocale } = useAuthLocale()
   const t = copy[locale]
-  const [resetLinkError] = useState(getInitialResetLinkError)
+  const [resetLinkError, setResetLinkError] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -79,6 +74,16 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false)
   const { session, loading: authLoading, updatePassword } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const linkError = getResetLinkError(new URLSearchParams(window.location.search))
+      setResetLinkError(linkError)
+      setError(linkError)
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [])
 
   const strength = useMemo(() => {
     let score = 0
