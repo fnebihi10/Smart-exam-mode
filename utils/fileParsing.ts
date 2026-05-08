@@ -21,13 +21,22 @@ export async function getLectureContext(selectedLectureIds?: string[]) {
       return ''
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    const role = typeof profile?.role === 'string' ? profile.role : 'student'
+
     let query = supabase
       .from('lecture_files')
       .select('id, name, storage_path, file_type')
-      .eq('user_id', user.id)
 
     if (selectedLectureIds?.length) {
       query = query.in('id', selectedLectureIds)
+    } else if (role !== 'student') {
+      query = query.eq('user_id', user.id)
     }
 
     const { data: files, error: dbError } = await query

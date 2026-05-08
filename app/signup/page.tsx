@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertCircle, ArrowRight, Eye, EyeOff, Lock, Mail, User } from 'lucide-react'
+import { AlertCircle, ArrowRight, BriefcaseBusiness, Eye, EyeOff, GraduationCap, Lock, Mail, User } from 'lucide-react'
 import AuthShell from '@/components/auth/AuthShell'
 import { useAuthLocale } from '@/components/auth/useAuthLocale'
 import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 import { getClientRedirectUrl } from '@/utils/site-url'
+import type { UserRole } from '@/types/roles'
 
 const copy = {
   en: {
@@ -19,6 +20,11 @@ const copy = {
     invalidPassword: 'Password must be at least 6 characters.',
     mismatch: 'Passwords do not match.',
     name: 'Full name',
+    role: 'Requested role',
+    studentRole: 'Student',
+    teacherRole: 'Teacher',
+    studentRoleBody: 'Join live exams and create private practice tests.',
+    teacherRoleBody: 'Ask an admin to approve teacher tools after signup.',
     email: 'Email',
     password: 'Password',
     confirmPassword: 'Confirm password',
@@ -35,34 +41,7 @@ const copy = {
     medium: 'Medium',
     strong: 'Strong',
     verifyNotice: 'Check your email after signup, then sign in.',
-  },
-  sq: {
-    badge: 'Krijo Llogari',
-    title: 'Krijo llogarine tende ne Smart Exam Mode.',
-    description: 'Krijo llogari per te ruajtur provimet, materialet dhe progresin.',
-    invalidName: 'Shkruaj emrin tend te plote.',
-    invalidEmail: 'Shkruaj nje email te vlefshem.',
-    invalidPassword: 'Fjalekalimi duhet te kete te pakten 6 karaktere.',
-    mismatch: 'Fjalekalimet nuk perputhen.',
-    name: 'Emri i plote',
-    email: 'Email',
-    password: 'Fjalekalimi',
-    confirmPassword: 'Konfirmo fjalekalimin',
-    namePlaceholder: 'p.sh. Arta Berisha',
-    emailPlaceholder: 'emri@email.com',
-    passwordPlaceholder: 'Minimumi 6 karaktere',
-    confirmPlaceholder: 'Perserite fjalekalimin',
-    submit: 'Krijo llogari',
-    loading: 'Duke krijuar llogarine...',
-    haveAccount: 'Ke tashme llogari?',
-    signIn: 'Hyr',
-    strength: 'Forca',
-    weak: 'E dobet',
-    medium: 'Mesatare',
-    strong: 'E forte',
-    verifyNotice: 'Konfirmo email-in pas regjistrimit dhe me pas hyr.',
-  },
-} as const
+  },} as const
 
 export default function SignUp() {
   const { locale, setLocale } = useAuthLocale()
@@ -71,6 +50,7 @@ export default function SignUp() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [name, setName] = useState('')
+  const [role, setRole] = useState<Exclude<UserRole, 'admin'>>('student')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
@@ -108,7 +88,7 @@ export default function SignUp() {
       email,
       password,
       options: {
-        data: { full_name: name.trim() },
+        data: { full_name: name.trim(), requested_role: role },
         emailRedirectTo: getClientRedirectUrl('/auth/confirm?next=/login'),
       },
     })
@@ -150,9 +130,9 @@ export default function SignUp() {
         </div>
       )}
 
-      <form onSubmit={handleSignUp} className="space-y-2.5 border-t border-[var(--border)] pt-2.5">
+      <form onSubmit={handleSignUp} className="space-y-1.5 border-t border-[var(--border)] pt-2">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+          <label className="mb-0.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
             {t.name}
           </label>
           <div className="relative">
@@ -162,14 +142,59 @@ export default function SignUp() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={t.namePlaceholder}
-              className="field-input min-h-10 rounded-2xl py-1.5 pl-11 pr-4"
+              className="field-input min-h-9 rounded-2xl py-1 pl-11 pr-4"
               required
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+          <label className="mb-0.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+            {t.role}
+          </label>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {[
+              {
+                value: 'student' as const,
+                title: t.studentRole,
+                body: t.studentRoleBody,
+                icon: GraduationCap,
+              },
+              {
+                value: 'teacher' as const,
+                title: t.teacherRole,
+                body: t.teacherRoleBody,
+                icon: BriefcaseBusiness,
+              },
+            ].map(({ value, title, body, icon: Icon }) => {
+              const selected = role === value
+
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setRole(value)}
+                  className={`min-h-[4rem] rounded-2xl border px-3 py-2 text-left transition ${
+                    selected
+                      ? 'border-[var(--accent)] bg-[var(--accent-soft)] text-slate-950 shadow-depth-sm dark:text-white'
+                      : 'border-[var(--border)] bg-white/40 text-slate-600 hover:border-[var(--accent)]/40 dark:bg-slate-900/40 dark:text-slate-300'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    <Icon className="h-4 w-4 text-[var(--accent)]" />
+                    {title}
+                  </span>
+                  <span className="mt-0.5 block text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                    {body}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-0.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
             {t.email}
           </label>
           <div className="relative">
@@ -179,14 +204,14 @@ export default function SignUp() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder={t.emailPlaceholder}
-              className="field-input min-h-10 rounded-2xl py-1.5 pl-11 pr-4"
+              className="field-input min-h-9 rounded-2xl py-1 pl-11 pr-4"
               required
             />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+          <label className="mb-0.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
             {t.password}
           </label>
           <div className="relative">
@@ -196,7 +221,7 @@ export default function SignUp() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder={t.passwordPlaceholder}
-              className="field-input min-h-10 rounded-2xl py-1.5 pl-11 pr-11"
+              className="field-input min-h-9 rounded-2xl py-1 pl-11 pr-11"
               required
             />
             <button
@@ -215,7 +240,7 @@ export default function SignUp() {
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+          <label className="mb-0.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
             {t.confirmPassword}
           </label>
           <div className="relative">
@@ -225,7 +250,7 @@ export default function SignUp() {
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               placeholder={t.confirmPlaceholder}
-              className="field-input min-h-10 rounded-2xl py-1.5 pl-11 pr-11"
+              className="field-input min-h-9 rounded-2xl py-1 pl-11 pr-11"
               required
             />
             <button
@@ -246,7 +271,7 @@ export default function SignUp() {
         <button
           type="submit"
           disabled={loading || !name.trim() || password !== confirmPassword}
-          className="primary-button w-full justify-center py-2.5 text-sm"
+          className="primary-button w-full justify-center py-2 text-sm"
         >
           {loading ? (
             <>

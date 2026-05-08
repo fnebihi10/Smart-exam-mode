@@ -3,10 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { type CSSProperties, useState } from 'react'
-import { BookOpen, FileCheck2, GraduationCap, LayoutDashboard, LogOut, Sparkles } from 'lucide-react'
+import { BookOpen, FileCheck2, GraduationCap, LayoutDashboard, LogOut, Radio, ShieldCheck, Sparkles } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import ThemeToggle from '@/components/ThemeToggle'
-import LanguageToggle from '@/components/i18n/LanguageToggle'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
 
 const copy = {
@@ -14,34 +13,40 @@ const copy = {
     subtitle: 'Calmer study workspace',
     summary: 'Overview',
     lectures: 'Lectures',
-    exams: 'Exams',
+    exams: 'Official exams',
+    practice: 'Practice',
+    liveExams: 'Live exams',
+    admin: 'Admin',
     focused: 'Focused workflow',
-    focusedBody: 'Navigation keeps only the areas you use often, with less noise and better hierarchy.',
+    focusedBody: 'Navigation adapts to your role so each workspace keeps its own responsibilities.',
     logout: 'Sign out',
-  },
-  sq: {
-    subtitle: 'Hapesire studimi me e qete',
-    summary: 'Permbledhje',
-    lectures: 'Leksionet',
-    exams: 'Provimet',
-    focused: 'Workflow i fokusuar',
-    focusedBody: 'Navigimi mban vetem zonat qe perdoren shpesh, me me pak zhurme dhe me shume qartesi.',
-    logout: 'Dil',
-  },
-} as const
+  },} as const
 
 export default function Sidebar() {
-  const { signOut } = useAuth()
+  const { role, signOut } = useAuth()
   const pathname = usePathname()
   const [loggingOut, setLoggingOut] = useState(false)
-  const { locale, setLocale } = useAppLocale()
+  const { locale } = useAppLocale()
   const t = copy[locale]
 
-  const links = [
-    { name: t.summary, href: '/dashboard', icon: LayoutDashboard },
-    { name: t.lectures, href: '/dashboard/lectures', icon: BookOpen },
-    { name: t.exams, href: '/dashboard/exams', icon: FileCheck2 },
-  ]
+  const links =
+    role === 'admin'
+      ? [
+          { name: t.summary, href: '/dashboard', icon: LayoutDashboard },
+          { name: t.admin, href: '/dashboard/admin', icon: ShieldCheck },
+        ]
+      : role === 'teacher'
+        ? [
+            { name: t.summary, href: '/dashboard', icon: LayoutDashboard },
+            { name: t.lectures, href: '/dashboard/lectures', icon: BookOpen },
+            { name: t.exams, href: '/dashboard/exams', icon: FileCheck2 },
+          ]
+        : [
+            { name: t.summary, href: '/dashboard', icon: LayoutDashboard },
+            { name: t.lectures, href: '/dashboard/lectures', icon: BookOpen },
+            { name: t.practice, href: '/dashboard/exams', icon: FileCheck2 },
+            { name: t.liveExams, href: '/dashboard/live-exams', icon: Radio },
+          ]
 
   const handleLogout = async () => {
     setLoggingOut(true)
@@ -49,12 +54,12 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="custom-scrollbar fixed inset-y-0 left-0 w-[17.25rem] overflow-y-auto p-4">
-      <div className="surface flex min-h-full flex-col border-r p-5 shadow-depth-xl backdrop-blur-[12px] animate-fadeInUp [border-right-color:var(--sidebar-edge)] [animation-delay:80ms] [animation-fill-mode:both]">
+    <aside className="fixed inset-y-0 left-0 w-[17.25rem] overflow-hidden p-4">
+      <div className="surface flex h-full min-h-0 flex-col border-r p-5 shadow-depth-xl backdrop-blur-[12px] animate-fadeInUp [border-right-color:var(--sidebar-edge)] [animation-delay:80ms] [animation-fill-mode:both]">
         <div className="flex items-start justify-between gap-3">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="icon-shell h-12 w-12 text-[var(--accent)] shadow-depth-sm">
-              <GraduationCap className="h-5 w-5" />
+            <div className="icon-shell h-10 w-10 text-[var(--accent)] shadow-depth-sm">
+              <GraduationCap className="h-4 w-4" />
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-900 dark:text-white">Smart Exam Mode</p>
@@ -64,21 +69,17 @@ export default function Sidebar() {
           <ThemeToggle />
         </div>
 
-        <div className="mt-4 flex justify-end">
-          <LanguageToggle locale={locale} onChange={setLocale} />
-        </div>
-
-        <div className="surface-muted mt-6 p-4 animate-fadeInScale [animation-delay:140ms] [animation-fill-mode:both]">
+        <div className="surface-muted mt-5 p-4 animate-fadeInScale [animation-delay:140ms] [animation-fill-mode:both]">
           <span className="eyebrow">
             <Sparkles className="h-3.5 w-3.5" />
             {t.focused}
           </span>
-          <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+          <p className="mt-3 text-sm leading-5 text-slate-600 dark:text-slate-300">
             {t.focusedBody}
           </p>
         </div>
 
-        <nav className="mt-6">
+        <nav className="mt-3.5 min-h-0">
           <ul className="space-y-2">
             {links.map(({ name, href, icon: Icon }, index) => {
             const isActive = pathname === href
@@ -100,7 +101,7 @@ export default function Sidebar() {
                   {isActive && (
                     <span className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-[var(--accent)]" />
                   )}
-                  <div className={`icon-shell h-9 w-9 rounded-xl transition-[transform,box-shadow,background-color] duration-300 group-hover/nav:shadow-depth-sm ${
+                  <div className={`icon-shell h-8 w-8 rounded-xl transition-[transform,box-shadow,background-color] duration-300 group-hover/nav:shadow-depth-sm ${
                     isActive
                       ? 'border-transparent bg-white/80 text-[var(--accent)] dark:bg-slate-900/80'
                       : 'border-[var(--border)] bg-white/50 text-slate-500 dark:bg-slate-900/60 dark:text-slate-400'
@@ -115,7 +116,7 @@ export default function Sidebar() {
           </ul>
         </nav>
 
-        <div className="mt-auto pt-6 animate-fadeInUp [animation-delay:360ms] [animation-fill-mode:both]">
+        <div className="mt-6 animate-fadeInUp [animation-delay:360ms] [animation-fill-mode:both]">
           <button
             type="button"
             onClick={handleLogout}

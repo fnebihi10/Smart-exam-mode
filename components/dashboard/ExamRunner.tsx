@@ -44,6 +44,10 @@ const copy = {
     rulesTitle: 'Exam rules',
     ruleEsc: 'Pressing Escape counts as a violation.',
     ruleSwitch: 'Switching tabs or apps counts as a violation.',
+    ruleShiftTab: 'Shift+Tab is blocked and counts as a violation.',
+    ruleSystemShortcut:
+      'System, browser-tab, and navigation shortcuts are blocked when the browser exposes them.',
+    ruleFullscreen: 'Leaving fullscreen counts as a violation.',
     ruleAuto: 'After 3 violations, the exam is submitted automatically.',
     ruleNav: 'Use next, previous, or question numbers to navigate.',
     start: 'Start exam',
@@ -64,7 +68,12 @@ const copy = {
     violationLimit: 'Maximum 3 violations',
     escViolation: 'Escape key was pressed during the exam.',
     switchViolation: 'The exam tab lost visibility or focus.',
+    shiftTabViolation: 'Shift+Tab was pressed during the exam.',
+    systemShortcutViolation: 'A Windows/Meta system shortcut was attempted during the exam.',
+    navigationShortcutViolation: 'A browser tab or page navigation shortcut was attempted during the exam.',
+    fullscreenViolation: 'Fullscreen exam mode was exited.',
     autoSubmitted: 'The exam was auto-submitted after the third violation.',
+    notLive: 'This official exam is no longer live.',
     completed: 'Exam submitted successfully.',
     saveFailed:
       'The exam was submitted locally, but saving the attempt in the database failed.',
@@ -89,7 +98,10 @@ const copy = {
     violationPaused:
       'The exam is paused. Click resume to continue after this warning.',
     topAlert:
-      'Warning: focus loss, Escape, or tab switching will add violations. Three violations cause auto-submit.',
+      'Warning: Escape, Shift+Tab, fullscreen exit, system shortcuts, or tab switching will add violations. In-exam navigation is safe. Three violations cause auto-submit.',
+    previewOnlyTitle: 'Preview-only exam view',
+    previewOnlyBody:
+      'Admins and teachers can inspect the exam, but only students can start a live or practice attempt.',
     reviewTitle: 'Answer review',
     reviewBody:
       'See how your score was calculated and compare your response with the expected answer.',
@@ -110,86 +122,7 @@ const copy = {
     noViolations: 'No violations recorded.',
     attemptStorageHint:
       'If you want attempts saved in Supabase, run the exam_attempts SQL block too.',
-  },
-  sq: {
-    back: 'Kthehu te provimet',
-    loading: 'Po ngarkohet provimi...',
-    notFound: 'Ky provim nuk mund te ngarkohet.',
-    introBadge: 'Modalitet provimi live',
-    introTitle: 'Je gati te hysh ne nje sesion provimi te fokusuar.',
-    introBody:
-      'Provimi nis nga pyetja e pare, ndjek shkeljet dhe dergohet automatikisht pas shkeljes se trete.',
-    rulesTitle: 'Rregullat e provimit',
-    ruleEsc: 'Shtypja e Escape llogaritet si shkelje.',
-    ruleSwitch: 'Nderrimi i tab-it ose aplikacionit llogaritet si shkelje.',
-    ruleAuto: 'Pas 3 shkeljeve, provimi dergohet automatikisht.',
-    ruleNav: 'Perdor next, previous ose numrat e pyetjeve per levizje.',
-    start: 'Fillo provimin',
-    resume: 'Vazhdo provimin',
-    submit: 'Dergo provimin',
-    submitting: 'Po dergohet...',
-    previous: 'Me pare',
-    next: 'Tjeter',
-    question: 'Pyetja',
-    questions: 'Pyetje',
-    objectiveScore: 'Piket totale',
-    answered: 'Te pergjigjura',
-    violations: 'Shkelje',
-    timeLeft: 'Koha e mbetur',
-    submitNotice:
-      'Pyetjet me alternativa, plotesimet dhe pergjigjet e hapura vleresohen automatikisht. Pergjigjet e hapura i kontrollon AI.',
-    violationBadge: 'Monitori i shkeljeve',
-    violationLimit: 'Maksimumi 3 shkelje',
-    escViolation: 'U shtyp tasti Escape gjate provimit.',
-    switchViolation: 'Tab-i ose dritarja e provimit humbi fokusin.',
-    autoSubmitted: 'Provimi u dergua automatikisht pas shkeljes se trete.',
-    completed: 'Provimi u dergua me sukses.',
-    saveFailed:
-      'Provimi u dergua lokalisht, por ruajtja e tentatives ne databaze deshtoi.',
-    saveSetupMissing:
-      'Pergjigjet e provimit u derguan, por tabela exam_attempts ne Supabase nuk eshte aktive ende.',
-    gradingFailed:
-      'Vleresimi me AI per pergjigjet e hapura deshtoi, prandaj ato u ruajten me 0 pike.',
-    resultTitle: 'Sesioni perfundoi',
-    resultBody:
-      'Pergjigjet jane mbyllur. Shiko rezultatin dhe kthehu kur te jesh gati.',
-    returnToExams: 'Kthehu te provimet',
-    takeAnother: 'Kthehu te krijuesi',
-    answeredCount: 'Pyetje te pergjigjura',
-    violationsCount: 'Numri i shkeljeve',
-    manualReview: 'Pergjigjet e hapura u vleresuan nga AI dhe u perfshine ne piket totale.',
-    rulesAcknowledge: 'I kuptoj rregullat dhe jam gati te filloj.',
-    answerPlaceholder: 'Shkruaj pergjigjen tende...',
-    responsePlaceholder: 'Shkruaj pergjigjen e plote...',
-    stayFocused: 'Qendro ne kete ekran derisa ta dergosh provimin.',
-    strike: 'Shkelja',
-    violationWarning: 'U zbulua nje shkelje',
-    violationPaused:
-      'Provimi eshte ndalur perkohesisht. Kliko resume per te vazhduar pas ketij paralajmerimi.',
-    topAlert:
-      'Paralajmerim: humbja e fokusit, Escape ose nderrimi i tab-it shtojne shkelje. Tre shkelje e dergojne provimin automatikisht.',
-    reviewTitle: 'Rishikimi i pergjigjeve',
-    reviewBody:
-      'Shiko si u llogariten piket dhe krahaso pergjigjen tende me pergjigjen e pritur.',
-    yourAnswer: 'Pergjigjja jote',
-    correctAnswerLabel: 'Pergjigjja e sakte',
-    acceptedAnswersLabel: 'Pergjigje te pranuara',
-    explanationLabel: 'Shpjegimi',
-    aiSampleAnswer: 'Pergjigje model nga AI',
-    gradingNotesLabel: 'Shenime vleresimi',
-    earnedPoints: 'Piket e marra',
-    notAnswered: 'Nuk eshte derguar pergjigje.',
-    noOpenEndedAnswerFeedback: 'Nuk u dergua pergjigje per kete pyetje te hapur.',
-    correct: 'Sakte',
-    incorrect: 'Gabim',
-    pendingReview: 'Vleresim AI',
-    partial: 'Pjesshem',
-    aiFeedback: 'Vleresimi nga AI',
-    noViolations: 'Nuk ka shkelje te regjistruara.',
-    attemptStorageHint:
-      'Nese do qe tentativat te ruhen ne Supabase, ekzekuto edhe bllokun SQL te exam_attempts.',
-  },
-} as const
+  },} as const
 
 const normalizeText = (value: string) => value.trim().toLowerCase()
 
@@ -197,6 +130,68 @@ const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60)
   const secs = seconds % 60
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
+
+const getRemainingLiveSeconds = (liveUntil: string | null) => {
+  if (!liveUntil) return null
+
+  return Math.max(0, Math.floor((new Date(liveUntil).getTime() - Date.now()) / 1000))
+}
+
+const getExamTimeLimitSeconds = (examRecord: StoredExamRecord) => {
+  const durationSeconds = Math.max(
+    1,
+    (examRecord.exam_payload.estimatedDurationMinutes || 1) * 60
+  )
+
+  if (examRecord.exam_kind !== 'official') {
+    return durationSeconds
+  }
+
+  const remainingLiveSeconds = getRemainingLiveSeconds(examRecord.live_until)
+
+  if (remainingLiveSeconds === null) {
+    return durationSeconds
+  }
+
+  return Math.min(durationSeconds, remainingLiveSeconds)
+}
+
+const isMetaKeyEvent = (event: KeyboardEvent) =>
+  event.metaKey ||
+  event.getModifierState?.('Meta') ||
+  event.key === 'Meta' ||
+  event.key === 'OS' ||
+  event.key === 'Win' ||
+  event.code === 'MetaLeft' ||
+  event.code === 'MetaRight' ||
+  event.code === 'OSLeft' ||
+  event.code === 'OSRight'
+
+const isSystemShiftShortcut = (event: KeyboardEvent) =>
+  event.shiftKey && isMetaKeyEvent(event)
+
+const isSystemShortcut = (event: KeyboardEvent) =>
+  isMetaKeyEvent(event) || isSystemShiftShortcut(event)
+
+const isBrowserNavigationShortcut = (event: KeyboardEvent) => {
+  const key = event.key.toLowerCase()
+  const code = event.code.toLowerCase()
+  const ctrlOrMeta = event.ctrlKey || isMetaKeyEvent(event)
+
+  return (
+    (key === 'tab' && (event.ctrlKey || event.metaKey || event.altKey)) ||
+    (ctrlOrMeta && (key === 'pageup' || key === 'pagedown')) ||
+    (event.altKey && (key === 'arrowleft' || key === 'arrowright' || key === 'tab')) ||
+    (ctrlOrMeta && ['l', 'r', 'w', 'n', 't'].includes(key)) ||
+    code === 'f11'
+  )
+}
+
+const blockExamKeyboardEvent = (event: KeyboardEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+  event.stopImmediatePropagation()
 }
 
 const isAttemptTableMissing = (message: string) => {
@@ -274,7 +269,7 @@ export default function ExamRunner({
 }: {
   examId: string
 }) {
-  const { user } = useAuth()
+  const { role, roleLoading, user } = useAuth()
   const { locale } = useAppLocale()
   const t = copy[locale]
   const supabase = useSupabaseBrowserClient()
@@ -289,6 +284,7 @@ export default function ExamRunner({
   const [isPaused, setIsPaused] = useState(false)
   const [pauseReason, setPauseReason] = useState('')
   const [timeLeft, setTimeLeft] = useState(0)
+  const [sessionDurationSeconds, setSessionDurationSeconds] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [saveNotice, setSaveNotice] = useState('')
   const [result, setResult] = useState<{
@@ -296,10 +292,13 @@ export default function ExamRunner({
     payload: ExamAttemptPayload
   } | null>(null)
   const lastViolationAtRef = useRef(0)
+  const lastInternalPointerAtRef = useRef(0)
   const submitStartedRef = useRef(false)
 
   useEffect(() => {
     const fetchExam = async () => {
+      if (roleLoading) return
+
       if (!user) {
         setLoading(false)
         setError(t.notFound)
@@ -312,7 +311,7 @@ export default function ExamRunner({
         const { data, error } = await supabase
           .from('exams')
           .select(
-            'id, title, description, topic_focus, difficulty, question_count, total_points, estimated_duration_minutes, status, exam_payload, created_at'
+            'id, user_id, title, description, topic_focus, difficulty, question_count, total_points, estimated_duration_minutes, status, exam_kind, exam_payload, published_at, live_until, created_at'
           )
           .eq('id', examId)
           .eq('status', 'published')
@@ -322,8 +321,16 @@ export default function ExamRunner({
           throw new Error(error?.message || t.notFound)
         }
 
-        setExamRecord(data as StoredExamRecord)
-        setTimeLeft(((data as StoredExamRecord).exam_payload.estimatedDurationMinutes || 1) * 60)
+        const nextExamRecord = data as StoredExamRecord
+        const timeLimitSeconds = getExamTimeLimitSeconds(nextExamRecord)
+
+        if (role === 'student' && nextExamRecord.exam_kind === 'official' && timeLimitSeconds <= 0) {
+          throw new Error(t.notLive)
+        }
+
+        setExamRecord(nextExamRecord)
+        setTimeLeft(timeLimitSeconds)
+        setSessionDurationSeconds(timeLimitSeconds)
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : t.notFound)
       } finally {
@@ -332,7 +339,7 @@ export default function ExamRunner({
     }
 
     void fetchExam()
-  }, [examId, supabase, t.notFound, user])
+  }, [examId, role, roleLoading, supabase, t.notFound, t.notLive, user])
 
   const exam = examRecord?.exam_payload as GeneratedExam | undefined
 
@@ -419,7 +426,7 @@ export default function ExamRunner({
 
   const submitExam = useCallback(
     async (status: ExamAttemptStatus, violationSnapshot?: string[]) => {
-      if (!exam || !examRecord || !user || submitted || submitStartedRef.current) return
+      if (!exam || !examRecord || !user || role !== 'student' || submitted || submitStartedRef.current) return
 
       submitStartedRef.current = true
       setSubmitting(true)
@@ -479,6 +486,8 @@ export default function ExamRunner({
       }
 
       const payload: ExamAttemptPayload = {
+        examTitle: exam.title,
+        examKind: examRecord.exam_kind,
         answers: answersList,
         objectiveScore: totalScore,
         objectiveMaxScore: totalMaxScore,
@@ -524,6 +533,7 @@ export default function ExamRunner({
       exam,
       examRecord,
       locale,
+      role,
       submitted,
       supabase,
       t.gradingFailed,
@@ -567,8 +577,26 @@ export default function ExamRunner({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        event.preventDefault()
+        blockExamKeyboardEvent(event)
         registerViolation(t.escViolation)
+        return
+      }
+
+      if (event.key === 'Tab' && event.shiftKey) {
+        blockExamKeyboardEvent(event)
+        registerViolation(t.shiftTabViolation)
+        return
+      }
+
+      if (isSystemShortcut(event)) {
+        blockExamKeyboardEvent(event)
+        registerViolation(t.systemShortcutViolation)
+        return
+      }
+
+      if (isBrowserNavigationShortcut(event)) {
+        blockExamKeyboardEvent(event)
+        registerViolation(t.navigationShortcutViolation)
       }
     }
 
@@ -578,13 +606,23 @@ export default function ExamRunner({
       }
     }
 
+    const onPointerDown = () => {
+      lastInternalPointerAtRef.current = Date.now()
+    }
+
     const onBlur = () => {
-      registerViolation(t.switchViolation)
+      window.setTimeout(() => {
+        const wasRecentInExamClick = Date.now() - lastInternalPointerAtRef.current < 1000
+
+        if (!document.hidden && !wasRecentInExamClick && !document.hasFocus()) {
+          registerViolation(t.switchViolation)
+        }
+      }, 200)
     }
 
     const onFullscreenChange = () => {
       if (!document.fullscreenElement && started && !submitted && !submitting) {
-        registerViolation(t.escViolation)
+        registerViolation(t.fullscreenViolation)
       }
     }
 
@@ -593,20 +631,33 @@ export default function ExamRunner({
       event.returnValue = ''
     }
 
-    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onKeyDown, true)
+    document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('visibilitychange', onVisibilityChange)
-    window.addEventListener('blur', onBlur)
+    window.addEventListener('blur', onBlur, true)
     document.addEventListener('fullscreenchange', onFullscreenChange)
     window.addEventListener('beforeunload', onBeforeUnload)
 
     return () => {
-      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keydown', onKeyDown, true)
+      document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('visibilitychange', onVisibilityChange)
-      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('blur', onBlur, true)
       document.removeEventListener('fullscreenchange', onFullscreenChange)
       window.removeEventListener('beforeunload', onBeforeUnload)
     }
-  }, [registerViolation, started, submitted, submitting, t.escViolation, t.switchViolation])
+  }, [
+    registerViolation,
+    started,
+    submitted,
+    submitting,
+    t.escViolation,
+    t.fullscreenViolation,
+    t.navigationShortcutViolation,
+    t.shiftTabViolation,
+    t.switchViolation,
+    t.systemShortcutViolation,
+  ])
 
   useEffect(() => {
     if (!started || submitted || isPaused) return
@@ -627,7 +678,18 @@ export default function ExamRunner({
   }, [isPaused, started, submitExam, submitted])
 
   const startExam = async () => {
+    if (!examRecord || role !== 'student') return
+
+    const timeLimitSeconds = getExamTimeLimitSeconds(examRecord)
+
+    if (examRecord.exam_kind === 'official' && timeLimitSeconds <= 0) {
+      setError(t.notLive)
+      return
+    }
+
     submitStartedRef.current = false
+    lastViolationAtRef.current = 0
+    lastInternalPointerAtRef.current = 0
     setStarted(true)
     setSubmitted(false)
     setCurrentIndex(0)
@@ -636,7 +698,8 @@ export default function ExamRunner({
     setPauseReason('')
     setSaveNotice('')
     setResult(null)
-    setTimeLeft((exam?.estimatedDurationMinutes || 1) * 60)
+    setTimeLeft(timeLimitSeconds)
+    setSessionDurationSeconds(timeLimitSeconds)
 
     if (document.documentElement.requestFullscreen) {
       try {
@@ -791,7 +854,7 @@ export default function ExamRunner({
                             {statusLabel}
                           </span>
                           <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
-                            {EXAM_CATEGORY_META[item.type].label[locale]}
+                            {EXAM_CATEGORY_META[item.type].label}
                           </span>
                         </div>
                         <p className="mt-4 text-lg leading-8 text-slate-900">{item.prompt}</p>
@@ -902,21 +965,60 @@ export default function ExamRunner({
                 <div className="mt-5 space-y-3">
                   <div className="flex gap-3"><ShieldAlert className="mt-0.5 h-5 w-5 text-rose-500" /><p className="text-sm text-slate-600 dark:text-slate-300">{t.ruleEsc}</p></div>
                   <div className="flex gap-3"><MonitorCog className="mt-0.5 h-5 w-5 text-amber-500" /><p className="text-sm text-slate-600 dark:text-slate-300">{t.ruleSwitch}</p></div>
+                  <div className="flex gap-3"><ShieldAlert className="mt-0.5 h-5 w-5 text-rose-500" /><p className="text-sm text-slate-600 dark:text-slate-300">{t.ruleShiftTab}</p></div>
+                  <div className="flex gap-3"><MonitorCog className="mt-0.5 h-5 w-5 text-amber-500" /><p className="text-sm text-slate-600 dark:text-slate-300">{t.ruleSystemShortcut}</p></div>
+                  <div className="flex gap-3"><FileWarning className="mt-0.5 h-5 w-5 text-rose-500" /><p className="text-sm text-slate-600 dark:text-slate-300">{t.ruleFullscreen}</p></div>
                   <div className="flex gap-3"><FileWarning className="mt-0.5 h-5 w-5 text-sky-500" /><p className="text-sm text-slate-600 dark:text-slate-300">{t.ruleAuto}</p></div>
                   <div className="flex gap-3"><ScanEye className="mt-0.5 h-5 w-5 text-[var(--accent)]" /><p className="text-sm text-slate-600 dark:text-slate-300">{t.ruleNav}</p></div>
                 </div>
 
-                <div className="mt-6 rounded-[24px] border border-[var(--border)] bg-white/70 p-4 text-sm text-slate-600 dark:bg-slate-900/70 dark:text-slate-300">
-                  {t.rulesAcknowledge}
-                </div>
+                {role === 'student' ? (
+                  <>
+                    <div className="mt-6 rounded-[24px] border border-[var(--border)] bg-white/70 p-4 text-sm text-slate-600 dark:bg-slate-900/70 dark:text-slate-300">
+                      {t.rulesAcknowledge}
+                    </div>
 
-                <button type="button" onClick={startExam} className="primary-button mt-6 w-full justify-center">
-                  <Sparkles className="h-4 w-4" />
-                  {t.start}
-                </button>
+                    <button type="button" onClick={startExam} className="primary-button mt-6 w-full justify-center">
+                      <Sparkles className="h-4 w-4" />
+                      {t.start}
+                    </button>
+                  </>
+                ) : (
+                  <div className="mt-6 rounded-[24px] border border-amber-200/80 bg-amber-50/90 p-4 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
+                    <p className="font-semibold">{t.previewOnlyTitle}</p>
+                    <p className="mt-2 leading-6">{t.previewOnlyBody}</p>
+                  </div>
+                )}
               </div>
             </div>
           </section>
+
+          {role !== 'student' && (
+            <section className="surface overflow-hidden p-6 sm:p-8">
+              <span className="eyebrow">
+                <BookOpenCheck className="h-3.5 w-3.5" />
+                {t.reviewTitle}
+              </span>
+              <div className="mt-5 space-y-3">
+                {exam.questions.map((question, index) => (
+                  <article key={question.id} className="surface-muted p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="status-pill">
+                        {t.question} {index + 1}
+                      </span>
+                      <span className="status-pill">
+                        {EXAM_CATEGORY_META[question.type].label}
+                      </span>
+                      <span className="status-pill">{question.points} pts</span>
+                    </div>
+                    <p className="mt-3 text-sm font-semibold leading-6 text-slate-900 dark:text-white">
+                      {question.prompt}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
     )
@@ -924,7 +1026,7 @@ export default function ExamRunner({
 
   const currentQuestion = exam.questions[currentIndex]
   const progress = ((currentIndex + 1) / exam.questions.length) * 100
-  const totalExamSeconds = (exam.estimatedDurationMinutes || 1) * 60
+  const totalExamSeconds = sessionDurationSeconds || (exam.estimatedDurationMinutes || 1) * 60
   const timeRatio = totalExamSeconds > 0 ? timeLeft / totalExamSeconds : 1
   const timerWarning = timeRatio <= 0.2
   const timerCritical = timeRatio <= 0.1
@@ -995,7 +1097,7 @@ export default function ExamRunner({
           <div key={currentQuestion.id} className="animate-fadeInScale mt-6 rounded-[30px] border border-slate-200/80 bg-white/78 p-5 shadow-[0_34px_90px_-54px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-slate-900/75 dark:shadow-[0_40px_90px_-50px_rgba(15,118,110,0.45)] sm:p-7">
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 dark:bg-white/10 dark:text-teal-100">
-                {EXAM_CATEGORY_META[currentQuestion.type].label[locale]}
+                {EXAM_CATEGORY_META[currentQuestion.type].label}
               </span>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 dark:bg-white/10 dark:text-slate-200">
                 {currentQuestion.points} pts

@@ -19,20 +19,7 @@ const copy = {
     loading: 'Sending...',
     back: 'Back to sign in',
     success: 'We sent you an email with the password reset link.',
-  },
-  sq: {
-    badge: 'Rikthim Fjalëkalimi',
-    title: 'Rikthe qasjen me të njëjtin dizajn të pastër.',
-    description: 'Kjo faqe mban të njëjtin auth layout të përqendruar, pa panele shtesë dhe me një rrjedhë më të qartë.',
-    email: 'Email',
-    emailPlaceholder: 'emri@email.com',
-    invalidEmail: 'Shkruaj një email të vlefshëm.',
-    submit: 'Dërgo linkun',
-    loading: 'Duke dërguar...',
-    back: 'Kthehu te hyrja',
-    success: 'Të dërguam një email me lidhjen për rikthimin e fjalëkalimit.',
-  },
-} as const
+  },} as const
 
 export default function ForgotPassword() {
   const { locale, setLocale } = useAuthLocale()

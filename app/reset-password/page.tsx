@@ -27,27 +27,7 @@ const copy = {
     medium: 'Medium',
     strong: 'Strong',
     strength: 'Strength',
-  },
-  sq: {
-    badge: 'Vendos Fjalëkalim të Ri',
-    title: 'Përfundo rikthimin me një ekran më të pastër.',
-    description: 'Hapi i reset përdor të njëjtin layout të përqendruar dhe mbështetje dygjuhëshe si pjesa tjetër e auth flow.',
-    password: 'Fjalëkalimi i ri',
-    confirmPassword: 'Konfirmo fjalëkalimin',
-    passwordPlaceholder: 'Shkruaj fjalëkalimin e ri',
-    confirmPlaceholder: 'Përsërite fjalëkalimin',
-    invalidPassword: 'Fjalëkalimi duhet të ketë të paktën 6 karaktere.',
-    mismatch: 'Fjalëkalimet nuk përputhen.',
-    submit: 'Ruaj fjalëkalimin e ri',
-    loading: 'Duke ruajtur...',
-    success: 'Fjalëkalimi u përditësua me sukses.',
-    back: 'Kthehu te hyrja',
-    weak: 'E dobët',
-    medium: 'Mesatare',
-    strong: 'E fortë',
-    strength: 'Forca',
-  },
-} as const
+  },} as const
 
 const getResetLinkError = (params: URLSearchParams) => {
   const errorCode = params.get('error_code')

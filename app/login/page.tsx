@@ -27,27 +27,7 @@ const copy = {
     loading: 'Signing in...',
     noAccount: "Don't have an account?",
     createAccount: 'Create one',
-  },
-  sq: {
-    badge: 'Mire se u ktheve',
-    title: 'Hyr pa zhurme vizuale.',
-    description:
-      'Nje hyrje me e paster, me layout te perqendruar, hierarki me te forte dhe mbeshtetje per light dhe dark mode.',
-    successFallback: 'Fjalekalimi u perditesua. Tani mund te hysh.',
-    invalidEmail: 'Shkruaj nje email te vlefshem.',
-    invalidPassword: 'Fjalekalimi duhet te kete te pakten 6 karaktere.',
-    invalidCredentials: 'Kredencialet nuk jane te sakta.',
-    email: 'Email',
-    password: 'Fjalekalimi',
-    emailPlaceholder: 'emri@email.com',
-    passwordPlaceholder: 'Shkruaj fjalekalimin',
-    forgotPassword: 'Harrove fjalekalimin?',
-    submit: 'Hyr',
-    loading: 'Duke hyre...',
-    noAccount: 'Nuk ke llogari?',
-    createAccount: 'Krijoje',
-  },
-} as const
+  },} as const
 
 function LoginForm() {
   const { locale, setLocale } = useAuthLocale()

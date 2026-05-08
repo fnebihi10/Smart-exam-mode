@@ -1,5 +1,9 @@
 export type ExamDifficulty = 'easy' | 'medium' | 'hard' | 'mixed'
 
+export type ExamKind = 'official' | 'practice'
+
+export type ExamStatus = 'draft' | 'published' | 'archived'
+
 export type ExamQuestionType = 'multiple_choice' | 'fill_in_blank' | 'open_ended'
 
 export interface ExamCategorySetting {
@@ -63,6 +67,7 @@ export interface GeneratedExam {
 
 export interface StoredExamRecord {
   id: string
+  user_id: string
   title: string
   description: string | null
   topic_focus: string | null
@@ -70,8 +75,11 @@ export interface StoredExamRecord {
   question_count: number
   total_points: number
   estimated_duration_minutes: number
-  status: 'published'
+  status: ExamStatus
+  exam_kind: ExamKind
   exam_payload: GeneratedExam
+  published_at: string | null
+  live_until: string | null
   created_at: string
 }
 
@@ -92,6 +100,8 @@ export interface OpenEndedGrade {
 }
 
 export interface ExamAttemptPayload {
+  examTitle?: string
+  examKind?: ExamKind
   answers: ExamAttemptAnswer[]
   objectiveScore: number
   objectiveMaxScore: number
@@ -117,34 +127,25 @@ export interface StoredExamAttemptRecord {
 export const EXAM_CATEGORY_META: Record<
   ExamQuestionType,
   {
-    label: { en: string; sq: string }
-    shortLabel: { en: string; sq: string }
-    helper: { en: string; sq: string }
+    label: string
+    shortLabel: string
+    helper: string
   }
 > = {
   multiple_choice: {
-    label: { en: 'Multiple choice', sq: 'Me alternativa' },
-    shortLabel: { en: 'MCQ', sq: 'Alternativa' },
-    helper: {
-      en: 'Four options per question with one correct answer.',
-      sq: 'Kater opsione per pyetje me nje pergjigje te sakte.',
-    },
+    label: 'Multiple choice',
+    shortLabel: 'MCQ',
+    helper: 'Two or more options per question with one correct answer.',
   },
   fill_in_blank: {
-    label: { en: 'Fill in the blank', sq: 'Plotesim' },
-    shortLabel: { en: 'Blank', sq: 'Plotesim' },
-    helper: {
-      en: 'Short-answer prompts with expected terms or phrases.',
-      sq: 'Pyetje te shkurtra me terma ose fraza te pritshme.',
-    },
+    label: 'Fill in the blank',
+    shortLabel: 'Blank',
+    helper: 'Short-answer prompts with expected terms or phrases.',
   },
   open_ended: {
-    label: { en: 'Open ended', sq: 'Pergjigje e hapur' },
-    shortLabel: { en: 'Essay', sq: 'Ese' },
-    helper: {
-      en: 'Written-response questions with grading guidance.',
-      sq: 'Pyetje me shkrim me udhezime vleresimi.',
-    },
+    label: 'Open ended',
+    shortLabel: 'Essay',
+    helper: 'Written-response questions with grading guidance.',
   },
 }
 

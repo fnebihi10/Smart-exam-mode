@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     if (!message) {
       return NextResponse.json(
-        { error: 'Mesazhi eshte i zbrazet.' },
+        { error: 'Message cannot be empty.' },
         { status: 400 }
       )
     }
@@ -42,13 +42,14 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `Je nje asistent i dobishem per nje aplikacion provimi. Pergjigju shkurt dhe qarte.
+          content: `You are a helpful assistant for an exam preparation app. Answer clearly and concisely.
+Respond in the same language as the user's message unless they explicitly ask for another language.
 
-Me poshte eshte baza e njohurive nga leksionet e ngarkuara te perdoruesit.
-Nese pyetja lidhet me keto materiale, perdori si burimin paresor.
+Below is the knowledge base from the user's uploaded lectures.
+If the question relates to these materials, use them as the primary source.
 
 KNOWLEDGE BASE:
-${lectureContext || 'Nuk ka materiale te ngarkuara ende.'}`,
+${lectureContext || 'No lecture materials have been uploaded yet.'}`,
         },
         { role: 'user', content: message },
       ],
@@ -57,13 +58,13 @@ ${lectureContext || 'Nuk ka materiale te ngarkuara ende.'}`,
 
     const reply =
       completion.choices[0]?.message.content ??
-      'Nuk mora nje pergjigje kete here.'
+      'I could not generate an answer this time.'
 
     return NextResponse.json({ reply })
   } catch (error: unknown) {
     console.error('API Error:', error)
     return NextResponse.json(
-      { error: 'Gabim gjate komunikimit me AI.' },
+      { error: 'AI communication failed.' },
       { status: 500 }
     )
   }

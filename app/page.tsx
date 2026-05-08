@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useMemo } from 'react'
 import { ArrowRight, Bot, FileText, GraduationCap, Sparkles } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
-import LanguageToggle from '@/components/i18n/LanguageToggle'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -31,34 +30,10 @@ const copy = {
     flow: 'Study workflow',
     flowBody: 'Moving from uploads to exam prep feels direct and easier to follow.',
     loading: 'Preparing your study workspace...',
-  },
-  sq: {
-    subtitle: 'Studim me i qarte',
-    login: 'Hyr',
-    signup: 'Krijo llogari',
-    badge: 'Hapesire akademike moderne',
-    title: 'Meso me fokus, menaxho materialet dhe pyet AI pa u humbur ne zhurme vizuale.',
-    description: 'Smart Exam Mode bashkon materialet e leksioneve, asistentin AI dhe nje panel me te paster ne nje vend te vetem.',
-    start: 'Fillo tani',
-    existing: 'Kam llogari ekzistuese',
-    openDashboard: 'Hap dashboard-in',
-    highlightsTitle: 'Cfare fiton menjehere',
-    highlightsBody: 'Me pak zhurme vizuale, me shume orientim.',
-    formats: 'Formatet',
-    use: 'Perdorimi',
-    feeling: 'Ndjesia',
-    materials: 'Materiale te organizuara',
-    materialsBody: 'Ngarko PDF, DOCX dhe TXT ne nje hapesire te qarte dhe te menaxhueshme.',
-    assistant: 'Asistent i gatshem',
-    assistantBody: 'Pyet me gjuhe natyrale dhe merr pergjigje te fokusuara mbi materialet e tua.',
-    flow: 'Rrjedhe studimi',
-    flowBody: 'Kalimi nga ngarkimi i leksioneve te pergatitja per provim ndihet me i drejtperdrejte.',
-    loading: 'Duke pergatitur ambientin tend te studimit...',
-  },
-} as const
+  },} as const
 
 export default function Home() {
-  const { locale, setLocale } = useAppLocale()
+  const { locale } = useAppLocale()
   const t = useMemo(() => copy[locale], [locale])
   const { user, loading } = useAuth()
 
@@ -71,7 +46,7 @@ export default function Home() {
   const metrics = [
     { label: t.formats, value: 'PDF, DOCX, TXT' },
     { label: t.use, value: 'Materials + AI Q&A' },
-    { label: t.feeling, value: locale === 'en' ? 'Less noise, more focus' : 'Me pak zhurme, me shume fokus' },
+    { label: t.feeling, value: 'Less noise, more focus' },
   ]
 
   if (loading) {
@@ -100,7 +75,6 @@ export default function Home() {
           </Link>
 
           <div className="flex items-center gap-3">
-            <LanguageToggle locale={locale} onChange={setLocale} />
             <ThemeToggle />
             <Link href="/login" className="secondary-button">
               {t.login}

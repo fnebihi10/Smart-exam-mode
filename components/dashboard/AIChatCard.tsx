@@ -38,30 +38,7 @@ const copy = {
     user: 'You',
     assistant: 'AI mentor',
     errorFallback: 'Communication with AI failed.',
-  },
-  sq: {
-    title: 'Mentori AI',
-    active: 'Aktiv',
-    subtitle: 'Bej pyetje te fokusuara bazuar ne materialet e leksioneve qe ke ngarkuar.',
-    clear: 'Pastro',
-    emptyTitle: 'Pyet me kontekst real',
-    emptyBody: 'Zgjidh nje pyetje fillestare ose shkruaj pyetjen tende per te analizuar materialet e ngarkuara.',
-    prompts: [
-      'Me jep nje permbledhje te leksionit te fundit.',
-      'Krijo 5 pyetje provimi nga materiali i ngarkuar.',
-      'Shpjego dallimin mes CPU dhe GPU me gjuhe te thjeshte.',
-    ],
-    sendPlaceholder: 'Pyet per materialin tend, kerko pyetje provimi ose permbledhje...',
-    sendButton: 'Dergo',
-    sendTitle: 'Dergo pyetjen',
-    keyHint: 'Shtyp Enter per dergim, Shift + Enter per rresht te ri.',
-    sourceHint: 'Asistenti perdor materialet qe ke ngarkuar ne llogarine tende.',
-    clearConfirm: 'Deshiron ta pastrosh biseden?',
-    user: 'Ti',
-    assistant: 'Mentori AI',
-    errorFallback: 'Deshtoi komunikimi me AI.',
-  },
-} as const
+  },} as const
 
 export default function AIChatCard() {
   const { locale } = useAppLocale()

@@ -43,29 +43,7 @@ const copy = {
     deleteConfirm: 'Do you want to delete this task?',
     loadError: 'Failed to load tasks.',
     addError: 'There was a problem while adding the task.',
-  },
-  sq: {
-    back: 'Kthehu te dashboard',
-    title: 'Detyrat e tua te studimit',
-    description: 'Kjo faqe ndjek te njejtin sistem vizual dhe e mban rrjedhen e punes te fokusuar te veprimi.',
-    total: 'Totali',
-    clearer: 'Rrjedhe me e qarte',
-    clearerBody: 'Lista lexohet me lehte dhe veprimet duken me qarte.',
-    newTitle: 'Shto nje detyre te re',
-    newBody: 'Mbaje te shkurter dhe te qarte, per shembull: Perserit kapitullin 3.',
-    placeholder: 'Shkruaj detyren e radhes...',
-    saving: 'Po ruhet...',
-    add: 'Shto detyre',
-    listTitle: 'Lista e detyrave',
-    listSubtitle: 'Perditesuar direkt nga Supabase.',
-    emptyTitle: 'Nuk ka detyra ende',
-    emptyBody: 'Shto nje detyre te vogel dhe perdore kete faqe si listen tende operative.',
-    delete: 'Fshi',
-    deleteConfirm: 'Deshiron ta fshish kete detyre?',
-    loadError: 'Gabim gjate ngarkimit te detyrave.',
-    addError: 'Ndodhi nje problem gjate shtimit te detyres.',
-  },
-} as const
+  },} as const
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error && error.message) {
@@ -264,7 +242,7 @@ export default function TasksPage() {
                         {task.title}
                       </h3>
                       <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                        {new Date(task.created_at).toLocaleString(locale === 'en' ? 'en-US' : 'sq-AL', { dateStyle: 'medium', timeStyle: 'short' })}
+                        {new Date(task.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
                       </p>
                     </div>
                   </div>

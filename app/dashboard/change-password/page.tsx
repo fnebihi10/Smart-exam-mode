@@ -23,24 +23,7 @@ const copy = {
     success: 'Password updated successfully.',
     submit: 'Update password',
     loading: 'Updating...',
-  },
-  sq: {
-    back: 'Kthehu te dashboard',
-    title: 'Ndrysho fjalekalimin',
-    description: 'Kjo faqe ndjek te njejtin sistem vizual si pjesa tjeter e panelit.',
-    security: 'Rrjedhe sigurie me e qarte',
-    securityBody: 'Forma mban vetem hapat qe duhen per ndryshimin e fjalekalimit.',
-    password: 'Fjalekalimi i ri',
-    confirm: 'Konfirmo fjalekalimin',
-    passwordPlaceholder: 'Shkruaj fjalekalimin e ri',
-    confirmPlaceholder: 'Perserite fjalekalimin',
-    invalidPassword: 'Fjalekalimi duhet te kete te pakten 6 karaktere.',
-    mismatch: 'Fjalekalimet nuk perputhen.',
-    success: 'Fjalekalimi u ndryshua me sukses.',
-    submit: 'Perditeso fjalekalimin',
-    loading: 'Duke perditesuar...',
-  },
-} as const
+  },} as const
 
 export default function ChangePassword() {
   const { locale } = useAppLocale()

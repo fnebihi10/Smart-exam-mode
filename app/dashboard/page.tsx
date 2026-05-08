@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { type CSSProperties, useEffect, useState } from 'react'
-import { ArrowRight, Bot, FileCheck2, FileStack, Sparkles } from 'lucide-react'
+import { ArrowRight, Bot, FileCheck2, FileStack, Radio, ShieldCheck, Sparkles } from 'lucide-react'
 import AIChatCard from '@/components/dashboard/AIChatCard'
 import UserCard from '@/components/dashboard/UserCard'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
+import { useAuth } from '@/contexts/AuthContext'
 
 const copy = {
   en: {
@@ -24,28 +25,13 @@ const copy = {
     quickBody: 'The dashboard is no longer trying to be both a control center and a file library at the same time.',
     lecturesCta: 'Open Lectures',
     examsCta: 'Open Exams',
-  },
-  sq: {
-    badge: 'Paneli yt akademik',
-    title: 'Nje dashboard me i qete dhe me ndarje me te qarte te rolit te seciles zone.',
-    description: 'Dashboard tani fokusohet te profili dhe puna me AI. Materialet e leksioneve jane vetem te faqja Leksionet, qe kjo faqe te mbetet me e lehte per t\'u lexuar.',
-    materials: 'Materialet',
-    materialsValue: 'Kaluan te Leksionet',
-    assistant: 'Asistenti',
-    assistantValue: 'Gati per pyetje',
-    exams: 'Krijuesi i provimit',
-    examsValue: 'Draft AI + preview',
-    approach: 'Qasja',
-    approachValue: 'Me pak zhurme, me shume strukture',
-    quickTitle: 'Cfare ndryshoi',
-    quickBody: 'Dashboard nuk po perpiqet me te jete edhe panel pune edhe biblioteke skedaresh ne te njejten kohe.',
-    lecturesCta: 'Hap Leksionet',
-    examsCta: 'Hap Provimet',
-  },
-} as const
+    liveCta: 'Open Live Exams',
+    adminCta: 'Open Admin',
+  },} as const
 
 export default function Dashboard() {
   const { locale } = useAppLocale()
+  const { role } = useAuth()
   const t = copy[locale]
   const [mounted, setMounted] = useState(false)
 
@@ -57,11 +43,24 @@ export default function Dashboard() {
     return () => window.cancelAnimationFrame(frame)
   }, [])
 
-  const quickStats = [
-    { title: t.materials, value: t.materialsValue, icon: FileStack, progress: 76 },
-    { title: t.assistant, value: t.assistantValue, icon: Bot, progress: 88 },
-    { title: t.exams, value: t.examsValue, icon: FileCheck2, progress: 71 },
-  ]
+  const quickStats =
+    role === 'admin'
+      ? [
+          { title: t.materials, value: 'Role audit', icon: ShieldCheck, progress: 84 },
+          { title: t.assistant, value: 'Preview only', icon: Bot, progress: 72 },
+          { title: t.exams, value: 'Official exams', icon: FileCheck2, progress: 71 },
+        ]
+      : role === 'student'
+        ? [
+            { title: t.materials, value: t.materialsValue, icon: FileStack, progress: 76 },
+            { title: t.assistant, value: t.assistantValue, icon: Bot, progress: 88 },
+            { title: t.exams, value: 'Practice + live', icon: Radio, progress: 78 },
+          ]
+        : [
+            { title: t.materials, value: t.materialsValue, icon: FileStack, progress: 76 },
+            { title: t.assistant, value: t.assistantValue, icon: Bot, progress: 88 },
+            { title: t.exams, value: t.examsValue, icon: FileCheck2, progress: 71 },
+          ]
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5 pb-4">
@@ -86,13 +85,27 @@ export default function Dashboard() {
               </div>
 
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <Link href="/dashboard/lectures" className="primary-button justify-center">
-                  {t.lecturesCta}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link href="/dashboard/exams" className="secondary-button justify-center">
-                  {t.examsCta}
-                </Link>
+                {role === 'admin' ? (
+                  <Link href="/dashboard/admin" className="primary-button justify-center">
+                    {t.adminCta}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/dashboard/lectures" className="primary-button justify-center">
+                      {t.lecturesCta}
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <Link href="/dashboard/exams" className="secondary-button justify-center">
+                      {t.examsCta}
+                    </Link>
+                    {role === 'student' && (
+                      <Link href="/dashboard/live-exams" className="secondary-button justify-center">
+                        {t.liveCta}
+                      </Link>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>

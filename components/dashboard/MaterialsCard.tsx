@@ -29,6 +29,8 @@ const copy = {
     badge: 'Lecture library',
     title: 'Uploaded materials',
     description: 'This is now the single home for lecture files, which keeps the rest of the dashboard cleaner.',
+    studentTitle: 'Teacher lecture materials',
+    studentDescription: 'Read teacher-uploaded lectures here, then use them as sources for your private practice exams.',
     state: 'Status',
     formats: 'Formats',
     stored: 'stored files',
@@ -50,46 +52,15 @@ const copy = {
     loadError: 'Could not load your lecture materials.',
     emptyTitle: 'No materials yet',
     emptyBody: 'Upload a lecture and this area becomes your main study library.',
+    studentEmptyTitle: 'No teacher lectures yet',
+    studentEmptyBody: 'When a teacher uploads lectures, they will appear here for reading and practice exams.',
     delete: 'Delete',
     view: 'View',
     previewError: 'Could not open the file preview.',
     sessionExpired: 'Your session expired. Please sign in again.',
     noFile: 'No file selected.',
     uploadInProgress: 'Upload already in progress.',
-  },
-  sq: {
-    badge: 'Biblioteka e leksioneve',
-    title: 'Materiale te ngarkuara',
-    description: 'Kjo eshte tani zona e vetme per skedaret e leksioneve, qe pjesa tjeter e dashboard te mbetet me e paster.',
-    state: 'Gjendja',
-    formats: 'Formatet',
-    stored: 'materiale te ruajtura',
-    formatValue: 'PDF, DOCX dhe TXT deri ne 10MB',
-    upload: 'Ngarko material',
-    uploading: 'Po ngarkohet...',
-    uploadError: 'Deshtoi ngarkimi',
-    uploadUnknown: 'Gabim i panjohur',
-    onlyTypes: 'Lejohen vetem PDF, DOCX dhe TXT.',
-    tooBig: 'Skedari duhet te jete me i vogel se 10MB.',
-    storageError: 'Storage: kontrollo bucket-in dhe politikat e aksesit ne Supabase.',
-    dbError: 'Skedari u ngarkua, por regjistrimi ne databaze deshtoi.',
-    uploadSuccess: 'Materiali u ngarkua me sukses.',
-    uploadRetry: 'Deshtoi ngarkimi. Provo perseri.',
-    deleteConfirm: 'Deshiron ta fshish',
-    deleteSuccess: 'Materiali u fshi me sukses.',
-    deleteError: 'Deshtoi fshirja e materialit.',
-    loading: 'Po kontrollohen materialet e ruajtura...',
-    loadError: 'Nuk u ngarkuan dot materialet e tua.',
-    emptyTitle: 'Nuk ka materiale ende',
-    emptyBody: 'Ngarko nje leksion dhe kjo zone do te kthehet ne biblioteken tende kryesore te pergatitjes.',
-    delete: 'Fshi',
-    view: 'Shiko',
-    previewError: 'Nuk u hap dot parashikimi i skedarit.',
-    sessionExpired: 'Sesioni ka skaduar. Ju lutem kyquni perseri.',
-    noFile: 'Nuk u zgjodh asnje skedar.',
-    uploadInProgress: 'Ngarkimi eshte duke u kryer.',
-  },
-} as const
+  },} as const
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error && error.message) {
@@ -100,7 +71,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 }
 
 export default function MaterialsCard() {
-  const { user } = useAuth()
+  const { role, user } = useAuth()
   const { locale } = useAppLocale()
   const t = copy[locale]
   const supabase = useSupabaseBrowserClient()
@@ -112,6 +83,8 @@ export default function MaterialsCard() {
   const [success, setSuccess] = useState('')
   const [activeFileId, setActiveFileId] = useState<string | null>(null)
   const [activeAction, setActiveAction] = useState<'view' | 'delete' | null>(null)
+  const canUpload = role === 'teacher'
+  const isStudent = role === 'student'
 
   const fetchFiles = useCallback(async () => {
     if (!user) {
@@ -122,14 +95,19 @@ export default function MaterialsCard() {
 
     try {
       setLoading(true)
-      const data = await listLectureFiles<LectureFileRecord>(supabase, user.id)
+      const data = await listLectureFiles<LectureFileRecord>(
+        supabase,
+        user.id,
+        undefined,
+        isStudent ? 'visible' : 'own'
+      )
       setFiles(data)
     } catch (err: unknown) {
       setError(getErrorMessage(err, t.loadError))
     } finally {
       setLoading(false)
     }
-  }, [supabase, t.loadError, user])
+  }, [isStudent, supabase, t.loadError, user])
 
   useEffect(() => {
     if (user) {
@@ -142,6 +120,11 @@ export default function MaterialsCard() {
   }, [fetchFiles, user])
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canUpload) {
+      setError(t.sessionExpired)
+      return
+    }
+
     if (uploading) {
       setError(t.uploadInProgress)
       return
@@ -210,6 +193,8 @@ export default function MaterialsCard() {
   }
 
   const handleDelete = async (file: LectureFileRecord) => {
+    if (!canUpload) return
+
     if (!window.confirm(`${t.deleteConfirm} "${file.name}"?`)) return
     if (!user) {
       setError(t.sessionExpired)
@@ -266,21 +251,27 @@ export default function MaterialsCard() {
         <div className="card-header-divider flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <span className="eyebrow">{t.badge}</span>
-            <h2 className="mt-3 text-xl font-semibold text-slate-900 dark:text-white">{t.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t.description}</p>
+            <h2 className="mt-3 text-xl font-semibold text-slate-900 dark:text-white">
+              {isStudent ? t.studentTitle : t.title}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              {isStudent ? t.studentDescription : t.description}
+            </p>
           </div>
 
-          <label className={`primary-button cursor-pointer ${!user ? 'pointer-events-none opacity-60' : ''}`}>
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            {uploading ? t.uploading : t.upload}
-            <input
-              type="file"
-              className="hidden"
-              onChange={handleUpload}
-              disabled={uploading || !user}
-              accept=".pdf,.docx,.txt"
-            />
-          </label>
+          {canUpload && (
+            <label className={`primary-button cursor-pointer ${!user ? 'pointer-events-none opacity-60' : ''}`}>
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {uploading ? t.uploading : t.upload}
+              <input
+                type="file"
+                className="hidden"
+                onChange={handleUpload}
+                disabled={uploading || !user}
+                accept=".pdf,.docx,.txt"
+              />
+            </label>
+          )}
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -348,8 +339,12 @@ export default function MaterialsCard() {
               <div className="icon-shell h-14 w-14 animate-float text-[var(--accent)]">
                 <FileText className="h-5 w-5" />
               </div>
-              <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-white">{t.emptyTitle}</h3>
-              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">{t.emptyBody}</p>
+              <h3 className="mt-5 text-lg font-semibold text-slate-900 dark:text-white">
+                {isStudent ? t.studentEmptyTitle : t.emptyTitle}
+              </h3>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
+                {isStudent ? t.studentEmptyBody : t.emptyBody}
+              </p>
             </div>
           ) : (
             files.map((file) => (
@@ -370,7 +365,7 @@ export default function MaterialsCard() {
                       <span className="status-pill shadow-[0_1px_3px_rgba(0,0,0,0.12)] hover:scale-105">{file.file_type.split('/').pop()?.toUpperCase() || 'FILE'}</span>
                       <span className="inline-flex items-center gap-1">
                         <CalendarDays className="h-3.5 w-3.5" />
-                        {new Date(file.created_at).toLocaleDateString(locale === 'en' ? 'en-US' : 'sq-AL')}
+                        {new Date(file.created_at).toLocaleDateString('en-US')}
                       </span>
                     </div>
                   </div>
@@ -392,16 +387,18 @@ export default function MaterialsCard() {
                     <Eye className="h-4 w-4" />
                     {t.view}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(file)}
-                    disabled={Boolean(activeAction)}
-                    data-destructive="true"
-                    className="secondary-button row-hover-action translate-x-1 px-4 py-2 text-rose-600 opacity-0 pointer-events-none group-hover/file:pointer-events-auto group-hover/file:translate-x-0 group-hover/file:opacity-100 focus-visible:pointer-events-auto focus-visible:translate-x-0 focus-visible:opacity-100 dark:text-rose-300"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {t.delete}
-                  </button>
+                  {canUpload && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(file)}
+                      disabled={Boolean(activeAction)}
+                      data-destructive="true"
+                      className="secondary-button row-hover-action translate-x-1 px-4 py-2 text-rose-600 opacity-0 pointer-events-none group-hover/file:pointer-events-auto group-hover/file:translate-x-0 group-hover/file:opacity-100 focus-visible:pointer-events-auto focus-visible:translate-x-0 focus-visible:opacity-100 dark:text-rose-300"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {t.delete}
+                    </button>
+                  )}
                 </div>
               </article>
             ))

@@ -3,32 +3,25 @@
 import { BadgeCheck, Mail, UserRound } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
+import { roleLabels } from '@/types/roles'
 
 const copy = {
   en: {
     title: 'Your study profile',
     active: 'Active account',
     email: 'Email',
+    role: 'Role',
     noEmail: 'No email found',
     noteTitle: 'Cleaner dashboard structure',
     noteBody: 'Profile details stay lightweight here, while materials live in the dedicated Lectures area.',
-  },
-  sq: {
-    title: 'Profili yt i studimit',
-    active: 'Llogari aktive',
-    email: 'Email',
-    noEmail: 'Nuk u gjet email',
-    noteTitle: 'Strukture me e paster',
-    noteBody: 'Profili qendron i thjeshte ketu, ndersa materialet jane vetem te faqja Leksionet.',
-  },
-} as const
+  },} as const
 
 export default function UserCard() {
-  const { user } = useAuth()
+  const { profile, role, user } = useAuth()
   const { locale } = useAppLocale()
   const t = copy[locale]
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Student'
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Student'
   const initial = displayName.charAt(0).toUpperCase()
 
   return (
@@ -73,7 +66,13 @@ export default function UserCard() {
             <UserRound className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">{t.noteTitle}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              {t.role}
+            </p>
+            <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
+              {roleLabels[role]}
+            </p>
+            <p className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">{t.noteTitle}</p>
             <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
               {t.noteBody}
             </p>

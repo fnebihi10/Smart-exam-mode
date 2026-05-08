@@ -13,17 +13,7 @@ const copy = {
     libraryBody: 'Each file has more breathing room, clearer metadata, and a stronger visual rhythm.',
     aiTitle: 'Foundation for AI',
     aiBody: 'Cleaner lecture organization also makes the AI workflow feel more reliable.',
-  },
-  sq: {
-    badge: 'Arkiva jote akademike',
-    title: 'Ngarko dhe organizo materialet e leksioneve ne nje zone te dedikuar.',
-    description: 'Kjo faqe e mban te gjithe eksperiencen e materialeve, ne vend qe ta dubloje edhe ne dashboard.',
-    libraryTitle: 'Biblioteke e strukturuar',
-    libraryBody: 'Cdo material ka me shume frymemarrje vizuale, metadata me te lexueshme dhe ritem me te mire.',
-    aiTitle: 'Baze per AI',
-    aiBody: 'Organizimi me i qarte i leksioneve e ben edhe rrjedhen me AI me te qendrueshme.',
-  },
-} as const
+  },} as const
 
 export default function LecturesPage() {
   const { locale } = useAppLocale()

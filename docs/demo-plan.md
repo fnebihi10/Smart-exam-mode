@@ -1,72 +1,72 @@
 # Demo Plan
 
-## Projekti dhe perdoruesi
+## Project And User
 
-Smart Exam Mode eshte platforme studimi per studente qe duan t'i mbajne materialet, pyetjet me AI dhe pergatitjen per provim ne nje vend te vetem. Aplikacioni u sherben sidomos studenteve qe kane shume leksione dhe duan nje rrjedhe me te qarte nga ngarkimi i materialeve deri te provimi praktik.
+Smart Exam Mode is a study platform for students who want lecture materials, AI questions, exam preparation, and live exam attempts in one focused workspace. It is especially useful when a course has many lecture files and students need a clearer path from uploaded materials to practice and official exams.
 
-## Flow kryesor per demo (5-7 min)
+## Main Demo Flow
 
-### 0:00-0:45 - Hyrja
-- Shpjegoj shkurt problemin: materialet, pyetjet dhe pergatitja zakonisht jane te shperndara.
-- Tregoj vleren e projektit: nje panel i vetem per materiale, AI chat, gjenerim provimi dhe live exam mode.
+### 0:00-0:45 - Introduction
+- Explain the problem: materials, questions, and exam preparation are usually scattered.
+- Show the product value: one workspace for materials, AI chat, exam generation, and live exam mode.
 
 ### 0:45-2:00 - Lectures
-- Hyr ne `Dashboard -> Lectures`.
-- Tregoj upload-in e nje materiali PDF, DOCX ose TXT.
-- Tregoj listen e materialeve, metadata, preview dhe faktin qe materialet ruhen ne Supabase Storage.
+- Open `Dashboard -> Lectures`.
+- Upload a PDF, DOCX, or TXT lecture file.
+- Show the material list, metadata, preview, and Supabase Storage persistence.
 
 ### 2:00-3:15 - AI Chat
-- Kthehem te dashboard.
-- Bej nje pyetje reale mbi materialin e ngarkuar.
-- Tregoj qe pergjigjja bazohet ne lecture context dhe jo vetem ne nje pergjigje te pergjithshme.
+- Return to the dashboard.
+- Ask a real question about the uploaded material.
+- Show that the answer is grounded in lecture context.
 
 ### 3:15-4:45 - Exam Builder
-- Hap `Dashboard -> Exams`.
-- Tregoj zgjedhjen e leksioneve burim, veshtiresine, kohezgjatjen dhe numrin e pyetjeve.
-- Gjeneroj nje draft provimi me AI.
-- Tregoj qe drafti mund te modifikohet para publikimit.
+- Open `Dashboard -> Exams`.
+- Choose source lectures, difficulty, duration, and question counts.
+- Generate an AI exam draft.
+- Show that the draft can be edited before publishing.
 
-### 4:45-6:00 - Publish dhe Live Exam Mode
-- Publikoj provimin.
-- Hap provimin live.
-- Tregoj timer-in, navigimin mes pyetjeve dhe violation tracking.
-- Permend qe humbja e fokusit dhe Escape numerohen si shkelje dhe pas 3 shkeljeve provimi dergohet automatikisht.
+### 4:45-6:00 - Publish And Live Exam Mode
+- Publish the exam.
+- Open the live exam.
+- Show the timer, question navigation, and violation tracking.
+- Explain that Escape, blocked shortcuts, tab switching, and fullscreen exit count as violations.
 
-### 6:00-7:00 - Mbyllja
-- Permbledh vleren: materiale + AI + exam workflow + anti-switch exam mode.
-- Them shkurt cfare eshte ndertuar teknikisht dhe pse zgjodha kete flow si demonstrimin me te forte.
+### 6:00-7:00 - Close
+- Summarize the value: materials + AI + exam workflow + focused live exam mode.
+- Briefly explain the technical architecture and why this flow best demonstrates the product.
 
-## Pjeset teknike qe do t'i shpjegoj shkurt
+## Technical Notes
 
-- `Next.js App Router` per frontend dhe API routes.
-- `Supabase Auth` per identitetin e perdoruesit dhe izolimin sipas `user_id`.
-- `Supabase Database + RLS` per `lecture_files`, `exams`, `exam_attempts` dhe `tasks`.
-- `Supabase Storage` per ruajtjen e materialeve.
-- `OpenAI SDK` per AI chat dhe gjenerim provimi.
-- Parsing i skedareve `PDF`, `DOCX` dhe `TXT` para perdorimit si context.
+- `Next.js App Router` for frontend routes and API routes.
+- `Supabase Auth` for identity and user isolation.
+- `Supabase Database + RLS` for `lecture_files`, `exams`, `exam_attempts`, and `tasks`.
+- `Supabase Storage` for lecture files.
+- `OpenAI SDK` for AI chat, exam generation, and open-ended grading.
+- PDF, DOCX, and TXT parsing before files are used as AI context.
 
-## Cfare kam kontrolluar para demos
+## Demo Checklist
 
-- `npm run build` kalon me sukses ne production build.
-- Login, signup dhe reset password kane flow te qarte.
-- Upload dhe preview i materialeve funksionojne.
-- AI chat kthen pergjigje kur `OPENAI_API_KEY` eshte konfiguruar.
-- Gjenerimi i provimit punon me materiale ose me `topic focus`.
-- Publikimi i provimit dhe live exam mode varen nga tabelat e krijuara me `supabase_setup.sql`.
-- README eshte perditesuar me setup dhe demo flow.
+- `npm run build` passes.
+- Signup, login, and reset password flows work.
+- Upload and preview work.
+- AI chat returns responses when `OPENAI_API_KEY` is configured.
+- Exam generation works with uploaded materials or topic focus.
+- Publishing and live exam mode work after running `supabase_setup.sql`.
+- Teacher results are grouped by exam and student.
 
-## Plani B nese live demo deshton
+## Backup Plan
 
-- Nese URL live nuk hapet, demonstroj lokalisht me `npm run dev`.
-- Nese OpenAI ka vonese ose rate limit, tregoj draft provimi te gjeneruar me pare dhe shpjegoj flow-n.
-- Nese Supabase ka problem me rrjetin, tregoj strukturat e databazes ne `supabase_setup.sql` dhe screenshot/video te rrjedhes.
-- Mbaj nje material testues dhe nje llogari testuese gati para prezantimit.
+- If the live URL fails, run locally with `npm run dev`.
+- If OpenAI is slow or rate-limited, show a previously generated exam draft and explain the flow.
+- If Supabase has network trouble, show the database structure in `supabase_setup.sql` and prepared screenshots or video.
+- Keep one test material and one prepared demo account ready before the presentation.
 
 ## Live URL
 
 - Repository: `https://github.com/fnebihi10/Smart-exam-mode`
 - Live URL: `https://smart-exam-mode.vercel.app/`
 
-## Readiness note
+## Readiness Note
 
-Per prezantimin final do te perdor flow-n `Lectures -> AI Chat -> Exam Builder -> Publish -> Live Exam`. Ky eshte flow-ja me e mire sepse tregon vleren e plote te produktit pa humbur ne detaje sekondare.
+For the final presentation, use the flow `Lectures -> AI Chat -> Exam Builder -> Publish -> Live Exam`. This shows the full product value without getting lost in secondary details.

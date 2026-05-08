@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: '%s | Smart Exam Mode',
   },
   description:
-    'Platforme inteligjente per menaxhimin e materialeve dhe pergatitjen per provim me AI.',
+    'An intelligent study platform for managing lecture materials, AI help, and exam preparation.',
 }
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="sq" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>

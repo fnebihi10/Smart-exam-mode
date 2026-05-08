@@ -1,6 +1,6 @@
 # Smart Exam Mode
 
-Smart Exam Mode is a bilingual study platform built with Next.js, Supabase, and OpenAI. It lets students upload lecture materials, ask AI questions about those materials, generate structured exam drafts, publish exams, and run live exam sessions with violation tracking.
+Smart Exam Mode is an English study platform built with Next.js, Supabase, and OpenAI. It lets students upload lecture materials, ask AI questions about those materials, generate structured exam drafts, publish exams, and run live exam sessions with violation tracking.
 
 ## Core flow
 
@@ -18,7 +18,7 @@ Smart Exam Mode is a bilingual study platform built with Next.js, Supabase, and 
 - Configurable exam generation by question type, difficulty, points, and lecture scope
 - Draft editing before publish
 - Published exams with live exam mode and basic anti-switch monitoring
-- Bilingual UI support for English and Albanian
+- English-only UI and AI exam workflow
 
 ## Tech stack
 

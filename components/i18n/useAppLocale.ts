@@ -1,27 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect } from 'react'
 
-export type AppLocale = 'sq' | 'en'
+export type AppLocale = 'en'
 
 const STORAGE_KEY = 'app-locale'
 
-const getInitialLocale = (): AppLocale => {
-  if (typeof window === 'undefined') {
-    return 'en'
-  }
-
-  const stored = localStorage.getItem(STORAGE_KEY)
-  return stored === 'sq' || stored === 'en' ? stored : 'en'
-}
-
 export function useAppLocale() {
-  const [locale, setLocale] = useState<AppLocale>(getInitialLocale)
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, 'en')
+  }, [])
 
-  const updateLocale = (nextLocale: AppLocale) => {
-    setLocale(nextLocale)
-    localStorage.setItem(STORAGE_KEY, nextLocale)
-  }
+  const updateLocale = useCallback((nextLocale: AppLocale) => {
+    void nextLocale
+    localStorage.setItem(STORAGE_KEY, 'en')
+  }, [])
 
-  return { locale, setLocale: updateLocale }
+  return { locale: 'en' as AppLocale, setLocale: updateLocale }
 }

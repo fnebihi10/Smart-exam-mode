@@ -12,6 +12,8 @@ export interface LectureFileRecord extends LectureFileListItem {
   size: number
 }
 
+export type LectureFileScope = 'own' | 'visible'
+
 const DEFAULT_LECTURE_FILE_COLUMNS =
   'id, name, storage_path, file_type, size, created_at'
 
@@ -22,12 +24,18 @@ export async function listLectureFiles<
 >(
   supabase: SupabaseClient,
   userId: string,
-  columns = DEFAULT_LECTURE_FILE_COLUMNS
+  columns = DEFAULT_LECTURE_FILE_COLUMNS,
+  scope: LectureFileScope = 'own'
 ) {
-  const { data, error } = await supabase
+  let query = supabase
     .from('lecture_files')
     .select(columns)
-    .eq('user_id', userId)
+
+  if (scope === 'own') {
+    query = query.eq('user_id', userId)
+  }
+
+  const { data, error } = await query
     .order('created_at', { ascending: false })
 
   if (error) {
