@@ -1116,10 +1116,10 @@ export default function ExamRunner({
                         key={option}
                         type="button"
                         onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: option }))}
-                        className={`rounded-[24px] border px-4 py-4 text-left text-sm transition sm:text-base ${
+                        className={`rounded-[24px] border-2 px-4 py-4 text-left text-sm font-medium transition sm:text-base ${
                           selected
-                            ? 'border-teal-300 bg-teal-50 text-teal-950 shadow-[0_18px_45px_-30px_rgba(20,184,166,0.32)] dark:bg-teal-400/18 dark:text-white dark:shadow-[0_18px_45px_-28px_rgba(45,212,191,0.85)]'
-                            : 'border-slate-200 bg-white/88 text-slate-700 hover:border-teal-400/50 hover:bg-teal-50/60 dark:border-white/10 dark:bg-slate-950/55 dark:text-slate-200 dark:hover:border-teal-300/40 dark:hover:bg-slate-900/80'
+                            ? 'border-teal-500 bg-teal-100 text-teal-900 shadow-[0_0_0_4px_rgba(20,184,166,0.18),0_4px_16px_-4px_rgba(20,184,166,0.28)] dark:border-teal-400 dark:bg-teal-400/25 dark:text-teal-50 dark:shadow-[0_0_0_4px_rgba(45,212,191,0.2),0_8px_24px_-8px_rgba(45,212,191,0.4)]'
+                            : 'border-slate-200 bg-white/88 text-slate-700 hover:border-teal-400/50 hover:bg-teal-50/40 dark:border-white/10 dark:bg-slate-950/55 dark:text-slate-200 dark:hover:border-teal-300/40 dark:hover:bg-slate-900/80'
                         }`}
                       >
                         {option}
