@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   BookOpenCheck,
   CheckCircle2,
   Clock3,
@@ -28,6 +29,7 @@ import {
   type OpenEndedQuestion,
   type StoredExamRecord,
 } from '@/types/exams'
+import { isFillInAnswerCorrect, normalizeAnswerText } from '@/utils/examGrading'
 import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 const VIOLATION_LIMIT = 3
@@ -63,7 +65,7 @@ const copy = {
     violations: 'Violations',
     timeLeft: 'Time left',
     submitNotice:
-      'Multiple choice, fill-in, and open-ended answers are scored automatically. Open-ended answers are reviewed by AI.',
+      'Single choice, fill-in, and open-ended answers are scored automatically. Open-ended answers are reviewed by AI.',
     violationBadge: 'Violation monitor',
     violationLimit: 'Maximum 3 violations',
     escViolation: 'Escape key was pressed during the exam.',
@@ -84,8 +86,13 @@ const copy = {
     resultTitle: 'Session complete',
     resultBody:
       'Your answers are locked. Review your outcome and return when you are ready.',
+    reviewResults: 'Open results review',
     returnToExams: 'Return to exams',
     takeAnother: 'Back to builder',
+    alreadySubmittedTitle: 'You already submitted this official exam.',
+    alreadySubmittedBody:
+      'Official exams can only be taken once. Open Results to review your answers and score.',
+    backToLiveExams: 'Back to live exams',
     answeredCount: 'Answered questions',
     violationsCount: 'Violation count',
     manualReview: 'Open-ended answers were reviewed by AI and included in the total score.',
@@ -101,7 +108,8 @@ const copy = {
       'Warning: Escape, Shift+Tab, fullscreen exit, system shortcuts, or tab switching will add violations. In-exam navigation is safe. Three violations cause auto-submit.',
     previewOnlyTitle: 'Preview-only exam view',
     previewOnlyBody:
-      'Admins and teachers can inspect the exam, but only students can start a live or practice attempt.',
+      'Admins and professors can inspect the exam, but only students can start a live or practice attempt.',
+    officialExam: 'Official exam',
     reviewTitle: 'Answer review',
     reviewBody:
       'See how your score was calculated and compare your response with the expected answer.',
@@ -123,8 +131,6 @@ const copy = {
     attemptStorageHint:
       'If you want attempts saved in Supabase, run the exam_attempts SQL block too.',
   },} as const
-
-const normalizeText = (value: string) => value.trim().toLowerCase()
 
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60)
@@ -287,6 +293,7 @@ export default function ExamRunner({
   const [sessionDurationSeconds, setSessionDurationSeconds] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [saveNotice, setSaveNotice] = useState('')
+  const [alreadyAttempted, setAlreadyAttempted] = useState(false)
   const [result, setResult] = useState<{
     status: ExamAttemptStatus
     payload: ExamAttemptPayload
@@ -306,6 +313,7 @@ export default function ExamRunner({
       }
 
       setLoading(true)
+      setAlreadyAttempted(false)
 
       try {
         const { data, error } = await supabase
@@ -324,8 +332,29 @@ export default function ExamRunner({
         const nextExamRecord = data as StoredExamRecord
         const timeLimitSeconds = getExamTimeLimitSeconds(nextExamRecord)
 
-        if (role === 'student' && nextExamRecord.exam_kind === 'official' && timeLimitSeconds <= 0) {
-          throw new Error(t.notLive)
+        if (role === 'student' && nextExamRecord.exam_kind === 'official') {
+          const { data: existingAttempts, error: existingAttemptError } = await supabase
+            .from('exam_attempts')
+            .select('id')
+            .eq('exam_id', nextExamRecord.id)
+            .eq('user_id', user.id)
+            .limit(1)
+
+          if (existingAttemptError && !isAttemptTableMissing(existingAttemptError.message)) {
+            throw new Error(existingAttemptError.message)
+          }
+
+          if (existingAttempts && existingAttempts.length > 0) {
+            setExamRecord(nextExamRecord)
+            setTimeLeft(0)
+            setSessionDurationSeconds(0)
+            setAlreadyAttempted(true)
+            return
+          }
+
+          if (timeLimitSeconds <= 0) {
+            throw new Error(t.notLive)
+          }
         }
 
         setExamRecord(nextExamRecord)
@@ -360,7 +389,8 @@ export default function ExamRunner({
       const userAnswer = answerMap.get(question.id) || ''
 
       if (question.type === 'multiple_choice') {
-        const isCorrect = normalizeText(userAnswer) === normalizeText(question.correctAnswer)
+        const isCorrect =
+          normalizeAnswerText(userAnswer) === normalizeAnswerText(question.correctAnswer)
         return {
           id: question.id,
           type: question.type,
@@ -379,9 +409,7 @@ export default function ExamRunner({
 
       if (question.type === 'fill_in_blank') {
         const acceptedAnswers = [question.correctAnswer, ...question.acceptableAnswers]
-        const isCorrect = acceptedAnswers
-          .map(normalizeText)
-          .includes(normalizeText(userAnswer))
+        const isCorrect = isFillInAnswerCorrect(userAnswer, acceptedAnswers)
 
         return {
           id: question.id,
@@ -445,18 +473,19 @@ export default function ExamRunner({
       const openEndedQuestions: Array<OpenEndedQuestion & { userAnswer: string }> = []
 
       exam.questions.forEach((question) => {
-        const answer = normalizeText(answers[question.id] || '')
+        const answer = answers[question.id] || ''
+        const normalizedAnswer = normalizeAnswerText(answer)
         totalMaxScore += question.points
 
         if (question.type === 'multiple_choice') {
-          if (answer && answer === normalizeText(question.correctAnswer)) {
+          if (normalizedAnswer && normalizedAnswer === normalizeAnswerText(question.correctAnswer)) {
             totalScore += question.points
           }
         }
 
         if (question.type === 'fill_in_blank') {
-          const accepted = [question.correctAnswer, ...question.acceptableAnswers].map(normalizeText)
-          if (answer && accepted.includes(answer)) {
+          const accepted = [question.correctAnswer, ...question.acceptableAnswers]
+          if (isFillInAnswerCorrect(answer, accepted)) {
             totalScore += question.points
           }
         }
@@ -678,7 +707,7 @@ export default function ExamRunner({
   }, [isPaused, started, submitExam, submitted])
 
   const startExam = async () => {
-    if (!examRecord || role !== 'student') return
+    if (!examRecord || role !== 'student' || alreadyAttempted) return
 
     const timeLimitSeconds = getExamTimeLimitSeconds(examRecord)
 
@@ -736,6 +765,43 @@ export default function ExamRunner({
 
   if (error || !exam || !examRecord) {
     return <div className="min-h-screen p-6 text-sm text-rose-600">{error || t.notFound}</div>
+  }
+
+  if (alreadyAttempted) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(15,118,110,0.14),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(180,83,9,0.12),transparent_30%),linear-gradient(180deg,#f9f5ee_0%,#ede3d6_100%)] px-4 py-6 dark:bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.14),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.12),transparent_28%),linear-gradient(180deg,#09111b_0%,#101927_100%)]">
+        <div className="mx-auto max-w-4xl space-y-5">
+          <section className="surface animate-fadeInScale p-6 sm:p-8">
+            <span className="eyebrow">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {t.completed}
+            </span>
+            <h1 className="page-title mt-5 max-w-3xl">{t.alreadySubmittedTitle}</h1>
+            <p className="page-copy mt-4 max-w-3xl">{t.alreadySubmittedBody}</p>
+
+            <div className="mt-6 rounded-[28px] border border-[var(--border)] bg-white/70 p-5 shadow-depth-sm dark:bg-slate-950/35">
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-200">
+                {exam.title}
+              </p>
+              <p className="mt-3 text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
+                {exam.description || exam.topicFocus || t.officialExam}
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link href="/dashboard/results" className="primary-button justify-center">
+                <BarChart3 className="h-4 w-4" />
+                {t.reviewResults}
+              </Link>
+              <Link href="/dashboard/live-exams" className="secondary-button justify-center">
+                <ArrowLeft className="h-4 w-4" />
+                {t.backToLiveExams}
+              </Link>
+            </div>
+          </section>
+        </div>
+      </div>
+    )
   }
 
   if (result) {
@@ -799,12 +865,22 @@ export default function ExamRunner({
             )}
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link href="/dashboard/exams" className="primary-button justify-center">
+              <Link href="/dashboard/results" className="primary-button justify-center">
+                <BarChart3 className="h-4 w-4" />
+                {t.reviewResults}
+              </Link>
+              <Link
+                href={examRecord.exam_kind === 'official' ? '/dashboard/live-exams' : '/dashboard/exams'}
+                className="secondary-button justify-center text-slate-900"
+              >
+                <ArrowLeft className="h-4 w-4" />
                 {t.returnToExams}
               </Link>
-              <Link href="/dashboard/exams" className="secondary-button justify-center text-slate-900">
-                {t.takeAnother}
-              </Link>
+              {examRecord.exam_kind === 'practice' && (
+                <Link href="/dashboard/exams" className="secondary-button justify-center text-slate-900">
+                  {t.takeAnother}
+                </Link>
+              )}
             </div>
           </section>
 

@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  Archive,
   ArrowLeft,
+  BarChart3,
   CheckCircle2,
   Eye,
   FileText,
@@ -38,26 +40,48 @@ import {
   type StoredExamRecord,
 } from '@/types/exams'
 import type { UserProfile } from '@/types/roles'
+import { isFillInAnswerCorrect, normalizeAnswerText } from '@/utils/examGrading'
 import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 type ExamsView = 'builder' | 'library' | 'results'
-type ResultKindFilter = 'all' | 'official' | 'practice'
+type StudentReviewStatus = 'correct' | 'incorrect' | 'partial'
+
+type StudentReviewItem = {
+  id: string
+  type: ExamQuestionType
+  prompt: string
+  points: number
+  status: StudentReviewStatus
+  earnedPoints: number
+  userAnswer: string
+  options: string[]
+  correctAnswer: string
+  acceptedAnswers: string[]
+  explanation: string
+  aiSampleAnswer: string
+  gradingNotes: string[]
+}
+
+type ExamBuilderProps = {
+  initialView?: ExamsView
+  lockedView?: ExamsView
+}
 
 const copy = {
   en: {
     back: 'Back to dashboard',
     adminBadge: 'Preview-only access',
     adminTitle: 'Admins control roles and preview exams without creating or starting them.',
-    adminBody: 'Open the admin area to manage teacher/student roles and inspect official exams.',
+    adminBody: 'Open the admin area to manage professor/student roles and inspect official exams.',
     adminCta: 'Open admin',
-    teacherBadge: 'Official exam studio',
+    teacherBadge: 'Professor exam studio',
     teacherTitle: 'Build official exams from lectures, review the draft, then publish live.',
     teacherBody:
       'Generated exams are saved as drafts first. Edit the questions, preview the paper, and publish only when it is ready for students.',
     studentBadge: 'Private practice',
-    studentTitle: 'Create practice exams from your lectures that only you can take.',
+    studentTitle: 'Practice exams ready to join.',
     studentBody:
-      'Practice exams stay private to your account. Teachers and admins do not use this area for official results.',
+      'Open your generated private exams from here. Results live in their own clean review area.',
     setupTitle: 'Exam setup',
     setupBody: 'Choose lecture sources, duration, difficulty, and the exact question mix.',
     examTitle: 'Exam title',
@@ -75,6 +99,7 @@ const copy = {
     selectAllLectures: 'Use all lectures',
     clearLectures: 'Clear selection',
     selectedLectures: 'Selected lectures',
+    lectureSources: 'Lecture sources',
     lectureRequired: 'Select at least one lecture or write a topic focus before generating the exam.',
     categoriesTitle: 'Question categories',
     categoriesBody: 'Choose how many questions and points each category should carry.',
@@ -93,6 +118,9 @@ const copy = {
     savedTitleStudent: 'Private practice exams',
     savedBodyTeacher: 'Drafts can be edited before publishing. Published official exams stay live only until their selected time ends.',
     savedBodyStudent: 'Only you can see and take these practice exams.',
+    quickGenerateTitle: 'Generate practice exam',
+    quickGenerateBody: 'Pick lecture sources, set a title, choose difficulty, and create a private exam instantly.',
+    questionMix: 'Question mix',
     emptySavedTeacher: 'No official exams yet.',
     emptySavedStudent: 'No practice exams yet.',
     loadError: 'Failed to load exams.',
@@ -103,14 +131,23 @@ const copy = {
     liveUntil: 'Live until',
     expired: 'Expired',
     draft: 'Draft',
+    archived: 'Archived',
     live: 'Live',
     practice: 'Practice',
+    readyToJoin: 'Ready to join',
     startExam: 'Start practice',
+    manageExam: 'Manage',
     preview: 'Preview',
     hidePreview: 'Hide preview',
+    reviewDraft: 'Review draft',
     editDraft: 'Edit questions',
+    saveExam: 'Save exam',
     saveDraft: 'Save draft',
     cancelEdit: 'Cancel',
+    reopenLive: 'Reopen live',
+    archiveExam: 'Archive',
+    archiveSuccess: 'Exam archived.',
+    archiveError: 'Archiving failed.',
     publishLive: 'Publish live',
     publishConfirm: 'Publish this exam live for the selected duration?',
     publishSuccess: 'Official exam is live for students.',
@@ -119,7 +156,8 @@ const copy = {
     deleteExamConfirm: 'Do you want to delete this exam?',
     deleteSuccess: 'Exam deleted successfully.',
     deleteError: 'Deleting the exam failed.',
-    invalidDraftJson: 'The draft needs complete question text, answers, points, and at least two options for every multiple-choice question.',
+    invalidDraftJson: 'The draft needs complete question text, answers, points, and at least two options for every single choice question.',
+    examSaved: 'Exam saved.',
     draftSaved: 'Draft updated.',
     draftSaveError: 'Saving the draft failed.',
     editorQuestions: 'Questions',
@@ -137,10 +175,14 @@ const copy = {
     builderTab: 'Builder',
     libraryTab: 'Library',
     resultsTab: 'Results',
+    resultsBadge: 'Student results',
     resultsTitleTeacher: 'Official exam results',
     resultsTitleStudent: 'Exam results',
     resultsBodyTeacher: 'Choose an exam, then review each student submission for that exam.',
-    resultsBodyStudent: 'Review your official exam attempts and private practice attempts.',
+    resultsBodyStudent: 'Weak topics and recommendations are saved with each submitted exam.',
+    resultsHeroTitle: 'Your score history',
+    resultsHeroBody: 'Weak topics and recommendations are saved with each submitted exam.',
+    refresh: 'Refresh',
     allResults: 'All results',
     officialResults: 'Official',
     practiceResults: 'Practice',
@@ -162,6 +204,30 @@ const copy = {
     userIdLabel: 'User ID',
     attemptLabel: 'Attempt',
     noAttempts: 'No attempts yet.',
+    submissions: 'Submissions',
+    minShort: 'Min',
+    ptsShort: 'Pts',
+    resultListTitle: 'Completed attempts',
+    resultDetailTitle: 'Attempt review',
+    resultDetailHint: 'Choose a result from the list to review the exact questions and feedback.',
+    resultEmptyTitle: 'No results yet',
+    resultEmptyBody: 'After you finish a practice or official exam, the full review appears here.',
+    scorePercent: 'Score',
+    bestAttempt: 'Best attempt',
+    averageResult: 'Average',
+    latestResult: 'Latest',
+    answerReview: 'Answer review',
+    reviewAnswers: 'Review answers',
+    submittedAnswer: 'Your answer',
+    correctOption: 'Correct option',
+    expectedAnswer: 'Expected answer',
+    acceptedAnswersList: 'Accepted answers',
+    feedback: 'Feedback',
+    notAnswered: 'No answer submitted',
+    correct: 'Correct',
+    incorrect: 'Wrong',
+    partial: 'Partial',
+    chooseResult: 'Select result',
     attemptScore: 'Score',
     attemptStatus: 'Status',
     attemptViolations: 'Violations',
@@ -185,6 +251,7 @@ const copy = {
     signIn: 'Sign in',
     correctAnswer: 'Correct answer',
     options: 'Options',
+    question: 'Question',
   },} as const
 
 const EXAM_COLUMNS =
@@ -378,6 +445,11 @@ const cleanDraftText = (value: string) => value.trim()
 const normalizeDraftText = (value: string) =>
   cleanDraftText(value).toLowerCase()
 
+const getAttemptScorePercent = (attempt: StoredExamAttemptRecord) => {
+  const maxScore = Math.max(1, attempt.objective_max_score || attempt.attempt_payload.objectiveMaxScore || 1)
+  return Math.round((attempt.objective_score / maxScore) * 100)
+}
+
 const normalizeDraftExam = (draft: GeneratedExam): GeneratedExam => {
   const questions = draft.questions.map((question) => {
     const prompt = cleanDraftText(question.prompt)
@@ -481,66 +553,95 @@ const formatLiveState = (exam: StoredExamRecord, liveLabel: string, expiredLabel
   return new Date(exam.live_until).getTime() > Date.now() ? liveLabel : expiredLabel
 }
 
-function ExamQuestionPreview({
-  exam,
-  labels,
-}: {
-  exam: GeneratedExam
-  labels: {
-    correctAnswer: string
-    sampleAnswer: string
-    options: string
+const createEmptyQuestion = (type: ExamQuestionType): ExamQuestion => {
+  const base = {
+    id: createDraftQuestionId(),
+    type,
+    prompt: '',
+    points:
+      type === 'multiple_choice'
+        ? 5
+        : type === 'fill_in_blank'
+          ? 3
+          : 8,
   }
+
+  if (type === 'multiple_choice') {
+    return {
+      ...base,
+      type,
+      options: ['Option 1', 'Option 2'],
+      correctAnswer: 'Option 1',
+      explanation: '',
+    }
+  }
+
+  if (type === 'fill_in_blank') {
+    return {
+      ...base,
+      type,
+      correctAnswer: '',
+      acceptableAnswers: [],
+      explanation: '',
+    }
+  }
+
+  return {
+    ...base,
+    type,
+    sampleAnswer: '',
+    gradingNotes: [],
+  }
+}
+
+function NumericStepper({
+  value,
+  onChange,
+  onBlur,
+  label,
+  min,
+  max,
+  step = 1,
+  unit,
+  className = '',
+}: {
+  value: string
+  onChange: (value: string) => void
+  onBlur: () => void
+  label: string
+  min: number
+  max: number
+  step?: number
+  unit?: string
+  className?: string
 }) {
   return (
-    <div className="mt-4 space-y-3">
-      {exam.questions.map((question, index) => (
-        <article
-          key={question.id || `${question.type}-${index}`}
-          className={`surface-muted border-l-4 p-4 ${questionAccentClasses[question.type]}`}
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="status-pill">
-              {index + 1}. {EXAM_CATEGORY_META[question.type].label}
-            </span>
-            <span className="status-pill">{question.points} pts</span>
-          </div>
-          <p className="mt-3 text-sm font-semibold leading-6 text-slate-900 dark:text-white">
-            {question.prompt}
-          </p>
-
-          {question.type === 'multiple_choice' && (
-            <div className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-              <p className="font-semibold">{labels.options}</p>
-              {question.options.map((option, optionIndex) => (
-                <p key={`${option}-${optionIndex}`} className="rounded-2xl border border-[var(--border)] px-3 py-2">
-                  {option}
-                </p>
-              ))}
-              <p className="text-[var(--accent)]">
-                {labels.correctAnswer}: {question.correctAnswer}
-              </p>
-            </div>
-          )}
-
-          {question.type === 'fill_in_blank' && (
-            <p className="mt-3 text-sm text-[var(--accent)]">
-              {labels.correctAnswer}: {question.correctAnswer}
-            </p>
-          )}
-
-          {question.type === 'open_ended' && (
-            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              {labels.sampleAnswer}: {question.sampleAnswer}
-            </p>
-          )}
-        </article>
-      ))}
+    <div className="relative">
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
+        aria-label={label}
+        className={`field-input text-base font-bold text-slate-950 dark:text-white ${unit ? 'pr-16' : 'pr-3'} ${className}`}
+      />
+      {unit && (
+        <span className="pointer-events-none absolute right-10 top-1/2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-400">
+          {unit}
+        </span>
+      )}
     </div>
   )
 }
 
-export default function ExamBuilder() {
+export default function ExamBuilder({
+  initialView = 'library',
+  lockedView,
+}: ExamBuilderProps = {}) {
   const { role, roleLoading, user, loading } = useAuth()
   const { locale } = useAppLocale()
   const t = copy[locale]
@@ -572,15 +673,26 @@ export default function ExamBuilder() {
   const [success, setSuccess] = useState('')
   const [lectureLoadError, setLectureLoadError] = useState('')
   const [requiresExamTableSetup, setRequiresExamTableSetup] = useState(false)
-  const [activeView, setActiveView] = useState<ExamsView>('library')
-  const [resultKindFilter, setResultKindFilter] = useState<ResultKindFilter>('all')
+  const [activeView, setActiveView] = useState<ExamsView>(lockedView ?? initialView)
   const [selectedResultExamId, setSelectedResultExamId] = useState<string | null>(null)
-  const [previewExamId, setPreviewExamId] = useState<string | null>(null)
+  const [expandedStudentAttemptId, setExpandedStudentAttemptId] = useState<string | null>(null)
   const [editingExamId, setEditingExamId] = useState<string | null>(null)
   const [draftEditor, setDraftEditor] = useState<GeneratedExam | null>(null)
   const [draftEditorError, setDraftEditorError] = useState('')
   const [busyExamId, setBusyExamId] = useState<string | null>(null)
   const [deletingAttemptId, setDeletingAttemptId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (lockedView) {
+      setActiveView(lockedView)
+    }
+  }, [lockedView])
+
+  useEffect(() => {
+    if (!lockedView && isStudent && activeView !== 'library') {
+      setActiveView('library')
+    }
+  }, [activeView, isStudent, lockedView])
 
   useEffect(() => {
     setConfig((current) => ({ ...current, language: locale }))
@@ -997,7 +1109,6 @@ export default function ExamBuilder() {
       const storedExam = await saveGeneratedExam(data.exam)
       setExams((current) => [storedExam, ...current])
       setRequiresExamTableSetup(false)
-      setPreviewExamId(isTeacher ? storedExam.id : null)
       setSuccess(
         `${isTeacher ? t.draftReady : t.practiceReady}${data.contextAvailable ? '' : ` ${t.noContext}`}`
       )
@@ -1031,20 +1142,37 @@ export default function ExamBuilder() {
     setError('')
     setSuccess('')
 
-    const publishedAt = new Date()
-    const liveUntil = new Date(
-      publishedAt.getTime() + Math.max(1, exam.estimated_duration_minutes) * 60 * 1000
-    )
-
     try {
+      const editedPayload =
+        editingExamId === exam.id && draftEditor ? normalizeDraftExam(draftEditor) : null
+      const durationMinutes =
+        editedPayload?.estimatedDurationMinutes ?? exam.estimated_duration_minutes
+      const publishedAt = new Date()
+      const liveUntil = new Date(
+        publishedAt.getTime() + Math.max(1, durationMinutes) * 60 * 1000
+      )
+      const updates = {
+        ...(editedPayload
+          ? {
+              title: editedPayload.title,
+              description: editedPayload.description,
+              topic_focus: editedPayload.topicFocus,
+              difficulty: editedPayload.difficulty,
+              question_count: editedPayload.questions.length,
+              total_points: editedPayload.totalPoints,
+              estimated_duration_minutes: editedPayload.estimatedDurationMinutes,
+              exam_payload: editedPayload,
+            }
+          : {}),
+        status: 'published',
+        published_at: publishedAt.toISOString(),
+        live_until: liveUntil.toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
       const { data, error } = await supabase
         .from('exams')
-        .update({
-          status: 'published',
-          published_at: publishedAt.toISOString(),
-          live_until: liveUntil.toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .update(updates)
         .eq('id', exam.id)
         .eq('user_id', user.id)
         .eq('exam_kind', 'official')
@@ -1058,9 +1186,15 @@ export default function ExamBuilder() {
       setExams((current) =>
         current.map((entry) => (entry.id === exam.id ? (data as StoredExamRecord) : entry))
       )
+      setEditingExamId(null)
+      setDraftEditor(null)
       setSuccess(t.publishSuccess)
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t.publishError))
+      if (err instanceof Error && err.message === 'Invalid draft') {
+        setDraftEditorError(t.invalidDraftJson)
+      } else {
+        setError(getErrorMessage(err, t.publishError))
+      }
     } finally {
       setBusyExamId(null)
     }
@@ -1099,6 +1233,60 @@ export default function ExamBuilder() {
     } finally {
       setBusyExamId(null)
     }
+  }
+
+  const handleArchiveExam = async (exam: StoredExamRecord) => {
+    if (!user) {
+      setError(t.sessionExpired)
+      return
+    }
+
+    setBusyExamId(exam.id)
+    setError('')
+    setSuccess('')
+
+    try {
+      const { data, error } = await supabase
+        .from('exams')
+        .update({
+          status: 'archived',
+          live_until: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', exam.id)
+        .eq('user_id', user.id)
+        .eq('exam_kind', 'official')
+        .select(EXAM_COLUMNS)
+        .single()
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      setExams((current) =>
+        current.map((entry) => (entry.id === exam.id ? (data as StoredExamRecord) : entry))
+      )
+      setSuccess(t.archiveSuccess)
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t.archiveError))
+    } finally {
+      setBusyExamId(null)
+    }
+  }
+
+  const updateDraftMeta = <Key extends keyof GeneratedExam>(
+    key: Key,
+    value: GeneratedExam[Key]
+  ) => {
+    setDraftEditor((current) =>
+      current
+        ? {
+            ...current,
+            [key]: value,
+          }
+        : current
+    )
+    setDraftEditorError('')
   }
 
   const updateDraftQuestion = (
@@ -1150,6 +1338,18 @@ export default function ExamBuilder() {
     setDraftEditorError('')
   }
 
+  const addDraftQuestion = (type: ExamQuestionType) => {
+    setDraftEditor((current) =>
+      current
+        ? {
+            ...current,
+            questions: [...current.questions, createEmptyQuestion(type)],
+          }
+        : current
+    )
+    setDraftEditorError('')
+  }
+
   const updateDraftOption = (questionId: string, optionIndex: number, value: string) => {
     updateDraftQuestion(questionId, (question) => {
       if (question.type !== 'multiple_choice') return question
@@ -1177,6 +1377,17 @@ export default function ExamBuilder() {
         options: [...question.options, `Option ${question.options.length + 1}`],
       }
     })
+  }
+
+  const setDraftCorrectOption = (questionId: string, option: string) => {
+    updateDraftQuestion(questionId, (question) =>
+      question.type === 'multiple_choice'
+        ? {
+            ...question,
+            correctAnswer: option,
+          }
+        : question
+    )
   }
 
   const removeDraftOption = (questionId: string, optionIndex: number) => {
@@ -1313,7 +1524,6 @@ export default function ExamBuilder() {
     setEditingExamId(exam.id)
     setDraftEditor(cloneDraftExam(exam.exam_payload))
     setDraftEditorError('')
-    setPreviewExamId(exam.id)
   }
 
   const handleSaveDraft = async (exam: StoredExamRecord) => {
@@ -1350,7 +1560,6 @@ export default function ExamBuilder() {
         })
         .eq('id', exam.id)
         .eq('user_id', user.id)
-        .eq('status', 'draft')
         .select(EXAM_COLUMNS)
         .single()
 
@@ -1363,7 +1572,7 @@ export default function ExamBuilder() {
       )
       setEditingExamId(null)
       setDraftEditor(null)
-      setSuccess(t.draftSaved)
+      setSuccess(t.examSaved)
     } catch (err: unknown) {
       if (err instanceof Error && err.message === 'Invalid draft') {
         setDraftEditorError(t.invalidDraftJson)
@@ -1417,6 +1626,16 @@ export default function ExamBuilder() {
     })
   }
 
+  const formatResultDate = (date: string | null) => {
+    if (!date) return '-'
+
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
+
   const examMap = useMemo(
     () => new Map([...attemptExamRecords, ...exams].map((exam) => [exam.id, exam])),
     [attemptExamRecords, exams]
@@ -1459,14 +1678,139 @@ export default function ExamBuilder() {
     [examMap, getAttemptExamKind, t.officialExam, t.practiceExam]
   )
 
-  const filteredAttempts = useMemo(
-    () =>
-      attempts.filter((attempt) =>
-        resultKindFilter === 'all'
-          ? true
-          : getAttemptExamKind(attempt) === resultKindFilter
-      ),
-    [attempts, getAttemptExamKind, resultKindFilter]
+  const filteredAttempts = attempts
+
+  useEffect(() => {
+    if (!expandedStudentAttemptId) {
+      return
+    }
+
+    if (!attempts.some((attempt) => attempt.id === expandedStudentAttemptId)) {
+      setExpandedStudentAttemptId(null)
+    }
+  }, [attempts, expandedStudentAttemptId])
+
+  const buildStudentReviewItems = useCallback(
+    (attempt: StoredExamAttemptRecord): StudentReviewItem[] => {
+      const exam = examMap.get(attempt.exam_id)?.exam_payload
+      const answerMap = new Map(
+        attempt.attempt_payload.answers.map((answer) => [answer.questionId, answer.answer])
+      )
+      const gradeMap = new Map(
+        (attempt.attempt_payload.openEndedGrades ?? []).map((grade) => [grade.questionId, grade])
+      )
+
+      if (!exam) {
+        return attempt.attempt_payload.answers.map((answer, index) => ({
+          id: answer.questionId,
+          type: answer.type,
+          prompt: `${t.question} ${index + 1}`,
+          points: 0,
+          status: answer.answer.trim() ? 'partial' : 'incorrect',
+          earnedPoints: 0,
+          userAnswer: answer.answer,
+          options: [],
+          correctAnswer: '',
+          acceptedAnswers: [],
+          explanation: '',
+          aiSampleAnswer: '',
+          gradingNotes: [],
+        }))
+      }
+
+      return exam.questions.map((question) => {
+        const userAnswer = answerMap.get(question.id) || ''
+
+        if (question.type === 'multiple_choice') {
+          const isCorrect =
+            normalizeAnswerText(userAnswer) === normalizeAnswerText(question.correctAnswer)
+
+          return {
+            id: question.id,
+            type: question.type,
+            prompt: question.prompt,
+            points: question.points,
+            status: isCorrect ? 'correct' : 'incorrect',
+            earnedPoints: isCorrect ? question.points : 0,
+            userAnswer,
+            options: question.options,
+            correctAnswer: question.correctAnswer,
+            acceptedAnswers: [],
+            explanation: question.explanation,
+            aiSampleAnswer: '',
+            gradingNotes: [],
+          }
+        }
+
+        if (question.type === 'fill_in_blank') {
+          const acceptedAnswers = [question.correctAnswer, ...question.acceptableAnswers]
+          const isCorrect = isFillInAnswerCorrect(userAnswer, acceptedAnswers)
+
+          return {
+            id: question.id,
+            type: question.type,
+            prompt: question.prompt,
+            points: question.points,
+            status: isCorrect ? 'correct' : 'incorrect',
+            earnedPoints: isCorrect ? question.points : 0,
+            userAnswer,
+            options: [],
+            correctAnswer: question.correctAnswer,
+            acceptedAnswers,
+            explanation: question.explanation,
+            aiSampleAnswer: '',
+            gradingNotes: [],
+          }
+        }
+
+        const grade = gradeMap.get(question.id)
+        const earnedPoints = grade?.earnedPoints ?? 0
+
+        return {
+          id: question.id,
+          type: question.type,
+          prompt: question.prompt,
+          points: question.points,
+          status:
+            earnedPoints >= question.points
+              ? 'correct'
+              : earnedPoints > 0
+                ? 'partial'
+                : 'incorrect',
+          earnedPoints,
+          userAnswer,
+          options: [],
+          correctAnswer: '',
+          acceptedAnswers: [],
+          explanation: grade?.feedback ?? '',
+          aiSampleAnswer: question.sampleAnswer,
+          gradingNotes: question.gradingNotes,
+        }
+      })
+    },
+    [examMap, t.question]
+  )
+
+  const getAttemptAdvice = useCallback(
+    (attempt: StoredExamAttemptRecord) => {
+      const exam = examMap.get(attempt.exam_id)?.exam_payload
+      const reviewItems = buildStudentReviewItems(attempt)
+      const weakTypes = Array.from(
+        new Set(
+          reviewItems
+            .filter((item) => item.status !== 'correct')
+            .map((item) => EXAM_CATEGORY_META[item.type].label.toLowerCase())
+        )
+      ).slice(0, 3)
+      const focus = exam?.topicFocus?.trim() || exam?.description?.trim() || ''
+
+      if (weakTypes.length === 0) {
+        return `Strong attempt${focus ? ` on ${focus}` : ''}. Keep practicing mixed questions to retain the material.`
+      }
+
+      return `Review ${weakTypes.join(', ')} and retry a practice exam with those topics in mind.`
+    },
+    [buildStudentReviewItems, examMap]
   )
 
   const teacherResultExams = useMemo(
@@ -1551,11 +1895,205 @@ export default function ExamBuilder() {
   const getStudentDisplayName = (profile: UserProfile | undefined) =>
     profile?.full_name?.trim() || profile?.email?.trim() || t.studentNameFallback
 
-  const viewTabs: Array<{ key: ExamsView; label: string }> = [
-    { key: 'library', label: t.libraryTab },
-    { key: 'builder', label: t.builderTab },
-    { key: 'results', label: t.resultsTab },
-  ]
+  const renderAttemptReviewPanel = (
+    reviewItems: StudentReviewItem[],
+    correctCount: number,
+    wrongCount: number
+  ) => (
+    <div className="mt-5 animate-fadeInScale border-t border-[var(--border)] pt-5">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h4 className="text-base font-extrabold text-slate-950 dark:text-white">
+            {t.answerReview}
+          </h4>
+          <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+            Question, submitted answer, correct answer, and grading feedback.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full border border-emerald-300 bg-emerald-200 px-3 py-1 text-xs font-extrabold text-emerald-950 dark:border-emerald-300/30 dark:bg-emerald-400/24 dark:text-emerald-50">
+            {correctCount} {t.correct.toLowerCase()}
+          </span>
+          <span className="rounded-full border border-rose-300 bg-rose-100 px-3 py-1 text-xs font-extrabold text-rose-800 dark:border-rose-300/30 dark:bg-rose-400/16 dark:text-rose-50">
+            {wrongCount} {t.incorrect.toLowerCase()}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {reviewItems.map((item, index) => {
+          const statusLabel =
+            item.status === 'correct'
+              ? t.correct
+              : item.status === 'partial'
+                ? t.partial
+                : t.incorrect
+          const statusClass =
+            item.status === 'correct'
+              ? 'border-l-emerald-400 bg-emerald-50/50 dark:bg-emerald-400/10'
+              : item.status === 'partial'
+                ? 'border-l-amber-400 bg-amber-50/55 dark:bg-amber-400/10'
+                : 'border-l-rose-400 bg-rose-50/45 dark:bg-rose-400/10'
+
+          return (
+            <article
+              key={item.id}
+              className={`rounded-[22px] border border-[var(--border)] border-l-4 p-4 shadow-depth-sm ${statusClass}`}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="status-pill">
+                    {t.question} {index + 1}
+                  </span>
+                  <span className="status-pill">{EXAM_CATEGORY_META[item.type].label}</span>
+                  <span className="status-pill">
+                    {item.earnedPoints}/{item.points} pts
+                  </span>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-extrabold ${
+                    item.status === 'correct'
+                      ? 'bg-emerald-200 text-emerald-950 dark:bg-emerald-400/24 dark:text-emerald-50'
+                      : item.status === 'partial'
+                        ? 'bg-amber-100 text-amber-900 dark:bg-amber-400/20 dark:text-amber-50'
+                        : 'bg-rose-100 text-rose-800 dark:bg-rose-400/16 dark:text-rose-50'
+                  }`}
+                >
+                  {statusLabel}
+                </span>
+              </div>
+
+              <p className="mt-4 text-base font-extrabold leading-7 text-slate-950 dark:text-white">
+                {item.prompt}
+              </p>
+
+              {item.options.length > 0 && (
+                <div className="mt-4 grid gap-2 md:grid-cols-2">
+                  {item.options.map((option) => {
+                    const selected =
+                      normalizeAnswerText(option) === normalizeAnswerText(item.userAnswer)
+                    const correct =
+                      normalizeAnswerText(option) === normalizeAnswerText(item.correctAnswer)
+
+                    return (
+                      <div
+                        key={option}
+                        className={`rounded-2xl border px-4 py-3 text-sm font-bold ${
+                          correct
+                            ? 'border-emerald-300 bg-emerald-100/80 text-emerald-900 dark:border-emerald-300/30 dark:bg-emerald-400/15 dark:text-emerald-100'
+                            : selected
+                              ? 'border-rose-300 bg-rose-100/75 text-rose-900 dark:border-rose-300/30 dark:bg-rose-400/15 dark:text-rose-100'
+                              : 'border-[var(--border)] bg-white/60 text-slate-800 dark:bg-slate-950/30 dark:text-slate-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span>{option}</span>
+                          {correct && <CheckCircle2 className="h-4 w-4 text-emerald-700 dark:text-emerald-200" />}
+                        </div>
+                        {selected && (
+                          <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.14em]">
+                            {t.submittedAnswer}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-[var(--border)] bg-white/62 px-4 py-3 dark:bg-slate-950/30">
+                  <p className="dashboard-stat-label text-[10px] uppercase tracking-[0.16em] dark:text-slate-200">
+                    {t.submittedAnswer}
+                  </p>
+                  <p className="mt-2 text-sm font-extrabold text-slate-950 dark:text-white">
+                    {item.userAnswer.trim() || t.notAnswered}
+                  </p>
+                </div>
+                {(item.correctAnswer || item.acceptedAnswers.length > 0 || item.aiSampleAnswer) && (
+                  <div className="rounded-2xl border border-[var(--border)] bg-white/62 px-4 py-3 dark:bg-slate-950/30">
+                    <p className="dashboard-stat-label text-[10px] uppercase tracking-[0.16em] dark:text-slate-200">
+                      {item.type === 'open_ended'
+                        ? t.expectedAnswer
+                        : item.acceptedAnswers.length > 1
+                          ? t.acceptedAnswersList
+                          : t.correctOption}
+                    </p>
+                    <p className="mt-2 text-sm font-extrabold leading-6 text-slate-950 dark:text-white">
+                      {item.type === 'open_ended'
+                        ? item.aiSampleAnswer
+                        : item.acceptedAnswers.length > 1
+                          ? item.acceptedAnswers.join(', ')
+                          : item.correctAnswer}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {(item.explanation || item.gradingNotes.length > 0) && (
+                <div className="mt-3 rounded-2xl border border-[var(--border)] bg-white/52 px-4 py-3 text-sm font-medium leading-6 text-slate-700 dark:bg-slate-950/25 dark:text-slate-200">
+                  <p className="dashboard-stat-label text-[10px] uppercase tracking-[0.16em] dark:text-slate-200">
+                    {t.feedback}
+                  </p>
+                  {item.explanation && <p className="mt-2">{item.explanation}</p>}
+                  {item.gradingNotes.length > 0 && (
+                    <p className="mt-2">{item.gradingNotes.join(' ')}</p>
+                  )}
+                </div>
+              )}
+            </article>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  const viewTabs: Array<{ key: ExamsView; label: string }> = lockedView
+    ? []
+    : isTeacher
+      ? [
+          { key: 'library', label: t.libraryTab },
+          { key: 'builder', label: t.builderTab },
+        ]
+      : []
+
+  const draftExamCount = exams.filter((exam) => exam.status === 'draft').length
+  const publishedExamCount = exams.filter((exam) => exam.status === 'published').length
+  const examPageStats = isTeacher
+    ? [
+        { label: t.lectureSources, value: lectureOptions.length, detail: `${selectedLectureCount} ${t.selectedLectures.toLowerCase()}` },
+        { label: t.officialExam, value: exams.length, detail: `${publishedExamCount} ${t.publishedOn.toLowerCase()}` },
+        { label: t.draft, value: draftExamCount, detail: t.savedTitleTeacher },
+        { label: t.resultsTab, value: attempts.length, detail: t.resultAttempts },
+      ]
+    : [
+        { label: t.lectureSources, value: lectureOptions.length, detail: `${selectedLectureCount} ${t.selectedLectures.toLowerCase()}` },
+        { label: t.practiceExam, value: exams.length, detail: t.savedTitleStudent },
+        { label: t.resultsTab, value: filteredAttempts.length, detail: t.resultAttempts },
+        { label: t.totalQuestions, value: totalQuestions, detail: `${totalPoints} ${t.totalPoints.toLowerCase()}` },
+      ]
+  const isLockedResultsView = lockedView === 'results'
+  const pageEyebrow = isLockedResultsView
+    ? isTeacher
+      ? t.officialResults
+      : t.resultsBadge
+    : isTeacher
+      ? t.teacherBadge
+      : t.studentBadge
+  const pageTitle = isLockedResultsView
+    ? isTeacher
+      ? t.resultsTitleTeacher
+      : t.resultsHeroTitle
+    : isTeacher
+      ? t.teacherTitle
+      : t.studentTitle
+  const pageBody = isLockedResultsView
+    ? isTeacher
+      ? t.resultsBodyTeacher
+      : t.resultsHeroBody
+    : isTeacher
+      ? t.teacherBody
+      : t.studentBody
 
   if (loading || roleLoading) {
     return (
@@ -1604,69 +2142,95 @@ export default function ExamBuilder() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-4">
-      <section className="surface animate-fadeInScale p-6 sm:p-8 lg:p-10">
-        <Link href="/dashboard" className="secondary-button px-4 py-2">
-          <ArrowLeft className="h-4 w-4" />
-          {t.back}
-        </Link>
-        <span className="eyebrow mt-5">
-          {isTeacher ? <Radio className="h-3.5 w-3.5" /> : <WandSparkles className="h-3.5 w-3.5" />}
-          {isTeacher ? t.teacherBadge : t.studentBadge}
-        </span>
-        <h1 className="page-title mt-5 max-w-4xl">
-          {isTeacher ? t.teacherTitle : t.studentTitle}
-        </h1>
-        <p className="page-copy mt-4 max-w-3xl">
-          {isTeacher ? t.teacherBody : t.studentBody}
-        </p>
-      </section>
-
+    <div className="grid w-full gap-3 pb-3">
       <section className="surface animate-fadeInScale p-4 sm:p-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem] xl:items-stretch">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-              {activeView === 'builder'
-                ? t.setupTitle
-                : activeView === 'library'
-                  ? isTeacher
-                    ? t.savedTitleTeacher
-                    : t.savedTitleStudent
-                  : isTeacher
-                    ? t.resultsTitleTeacher
-                    : t.resultsTitleStudent}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {activeView === 'builder'
-                ? t.setupBody
-                : activeView === 'library'
-                  ? isTeacher
-                    ? t.savedBodyTeacher
-                    : t.savedBodyStudent
-                  : isTeacher
-                    ? t.resultsBodyTeacher
-                    : t.resultsBodyStudent}
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/dashboard" className="secondary-button px-4 py-2 text-xs">
+                <ArrowLeft className="h-4 w-4" />
+                {t.back}
+              </Link>
+              <span className="eyebrow">
+                {isLockedResultsView ? (
+                  <BarChart3 className="h-3.5 w-3.5" />
+                ) : isTeacher ? (
+                  <Radio className="h-3.5 w-3.5" />
+                ) : (
+                  <WandSparkles className="h-3.5 w-3.5" />
+                )}
+                {pageEyebrow}
+              </span>
+            </div>
+            <h1 className="mt-4 max-w-4xl text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-[2.35rem] sm:leading-[1.08]">
+              {pageTitle}
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
+              {pageBody}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {viewTabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveView(tab.key)}
-                className={`secondary-button px-4 py-2 ${
-                  activeView === tab.key
-                    ? 'border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                    : ''
-                }`}
-              >
-                {tab.label}
-              </button>
+          <aside className="grid grid-cols-2 gap-2">
+            {examPageStats.map((stat) => (
+              <div key={stat.label} className="rounded-xl border border-[var(--border)] bg-white/60 p-3 shadow-depth-sm dark:bg-slate-950/30">
+                <p className="dashboard-stat-label truncate text-[10px] uppercase tracking-[0.16em] dark:text-slate-200">
+                  {stat.label}
+                </p>
+                <p className="dashboard-stat-value mt-1 text-xl dark:text-white">{stat.value}</p>
+                <p className="dashboard-stat-detail mt-1 truncate text-[11px] uppercase dark:text-slate-200">{stat.detail}</p>
+              </div>
             ))}
-          </div>
+          </aside>
         </div>
       </section>
+
+      {viewTabs.length > 0 && (
+        <section className="surface animate-fadeInScale p-3 sm:p-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                {activeView === 'builder'
+                  ? t.setupTitle
+                  : activeView === 'library'
+                    ? isTeacher
+                      ? t.savedTitleTeacher
+                      : t.savedTitleStudent
+                    : isTeacher
+                      ? t.resultsTitleTeacher
+                      : t.resultsTitleStudent}
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {activeView === 'builder'
+                  ? t.setupBody
+                  : activeView === 'library'
+                    ? isTeacher
+                      ? t.savedBodyTeacher
+                      : t.savedBodyStudent
+                    : isTeacher
+                      ? t.resultsBodyTeacher
+                      : t.resultsBodyStudent}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {viewTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveView(tab.key)}
+                  className={`secondary-button px-4 py-2 text-xs ${
+                    activeView === tab.key
+                      ? 'border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                      : ''
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {error && (
         <div className="surface-muted animate-fadeInUp border-rose-200/70 bg-rose-50/80 p-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300">
@@ -1690,21 +2254,25 @@ export default function ExamBuilder() {
       {activeView === 'builder' && (
         <form
           onSubmit={handleGenerate}
-          className="grid gap-5 xl:grid-cols-[0.88fr_1.12fr]"
+          className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_24rem]"
         >
-          <section className="surface animate-fadeInScale p-6 sm:p-7">
+          <section className="surface animate-fadeInScale p-4 sm:p-5">
             <div className="card-header-divider">
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+              <span className="eyebrow">
+                <WandSparkles className="h-3.5 w-3.5" />
+                {isTeacher ? t.builderTab : t.practice}
+              </span>
+              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">
                 {t.setupTitle}
               </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              <p className="mt-2 max-w-2xl text-[15px] font-medium leading-7 text-slate-700 dark:text-slate-300">
                 {t.setupBody}
               </p>
             </div>
 
-            <div className="mt-6 grid gap-4">
+            <div className="mt-5 grid gap-4">
               <label className="space-y-2">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">
                   {t.examTitle}
                 </span>
                 <input
@@ -1715,13 +2283,13 @@ export default function ExamBuilder() {
                   className="field-input px-4"
                   maxLength={MAX_EXAM_TITLE_CHARS}
                 />
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {config.title.length}/{MAX_EXAM_TITLE_CHARS}
                 </p>
               </label>
 
               <label className="space-y-2">
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">
                   {t.topicFocus}
                 </span>
                 <textarea
@@ -1736,214 +2304,237 @@ export default function ExamBuilder() {
                   placeholder={t.topicPlaceholder}
                   maxLength={MAX_TOPIC_FOCUS_CHARS}
                 />
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {config.topicFocus.length}/{MAX_TOPIC_FOCUS_CHARS}
                 </p>
               </label>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                <div className="space-y-2">
+                  <span className="text-sm font-extrabold text-slate-900 dark:text-white">
                     {t.difficulty}
                   </span>
-                  <select
-                    value={config.difficulty}
-                    onChange={(event) =>
-                      setConfig((current) => ({
-                        ...current,
-                        difficulty: event.target.value as ExamDifficulty,
-                      }))
-                    }
-                    className="field-input px-4"
-                  >
+                  <div className="grid gap-1 rounded-2xl border border-slate-300/75 bg-white/70 p-1 shadow-depth-sm dark:border-slate-700/80 dark:bg-slate-950/40 sm:grid-cols-4 md:grid-cols-2 2xl:grid-cols-4">
                     {difficultyOptions.map((option) => (
-                      <option key={option} value={option}>
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() =>
+                          setConfig((current) => ({
+                            ...current,
+                            difficulty: option,
+                          }))
+                        }
+                        className={`min-h-10 rounded-xl px-3 py-2 text-xs font-extrabold transition ${
+                          config.difficulty === option
+                            ? option === 'easy'
+                              ? 'bg-emerald-200 text-emerald-950 shadow-depth-sm dark:bg-emerald-400/24 dark:text-emerald-50'
+                              : option === 'medium'
+                                ? 'bg-teal-200 text-teal-950 shadow-depth-sm dark:bg-teal-400/24 dark:text-teal-50'
+                                : option === 'hard'
+                                  ? 'bg-rose-200 text-rose-950 shadow-depth-sm dark:bg-rose-400/24 dark:text-rose-50'
+                                  : 'bg-slate-900 text-white shadow-depth-sm dark:bg-white dark:text-slate-950'
+                            : 'text-slate-700 hover:bg-white/90 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:text-white'
+                        }`}
+                      >
                         {t[option]}
-                      </option>
+                      </button>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                </div>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                  <span className="text-sm font-extrabold text-slate-900 dark:text-white">
                     {t.duration}
                   </span>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={durationInput}
-                      onChange={(event) => setDurationInput(sanitizeNumericInput(event.target.value))}
-                      onBlur={commitDurationInput}
-                      className="field-input px-4 pr-24"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-400">
-                      {t.minutes}
-                    </span>
-                  </div>
+                  <NumericStepper
+                    value={durationInput}
+                    onChange={(value) => setDurationInput(sanitizeNumericInput(value))}
+                    onBlur={commitDurationInput}
+                    label={t.duration}
+                    min={MIN_DURATION_MINUTES}
+                    max={MAX_DURATION_MINUTES}
+                    step={5}
+                    unit="min"
+                    className="px-4"
+                  />
                 </label>
+              </div>
+
+              <div className="rounded-[24px] border border-slate-300/70 bg-white/65 p-4 shadow-depth-sm dark:border-slate-700/70 dark:bg-slate-950/35">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-800 dark:text-slate-100">
+                      {t.lectureSources}
+                    </p>
+                    <p className="mt-2 text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
+                      {t.lectureScopeBody}
+                    </p>
+                  </div>
+                  <span className="status-pill">
+                    <FileText className="h-3.5 w-3.5" />
+                    {selectedLectureCount} {t.selectedLectures.toLowerCase()}
+                  </span>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfig((current) => ({
+                        ...current,
+                        selectedLectureIds: lectureOptions.map((lecture) => lecture.id),
+                      }))
+                    }
+                    disabled={!lectureOptions.length}
+                    className="secondary-button px-3 py-2 text-xs disabled:opacity-50"
+                  >
+                    {t.selectAllLectures}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfig((current) => ({ ...current, selectedLectureIds: [] }))
+                    }
+                    disabled={!selectedLectureCount}
+                    className="secondary-button px-3 py-2 text-xs disabled:opacity-50"
+                  >
+                    {t.clearLectures}
+                  </button>
+                </div>
+
+                <div className="custom-scrollbar mt-3 grid max-h-52 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
+                  {lectureLoadError ? (
+                    <div className="rounded-2xl border border-amber-200/70 bg-amber-50/80 p-4 text-sm font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100 md:col-span-2">
+                      <p>{lectureLoadError}</p>
+                      <button
+                        type="button"
+                        onClick={() => void fetchLectureOptions()}
+                        className="secondary-button mt-3 px-4 py-2"
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                        {t.retryLectures}
+                      </button>
+                    </div>
+                  ) : loadingLectures ? (
+                    <div className="flex items-center gap-3 text-sm font-semibold text-slate-700 dark:text-slate-300 md:col-span-2">
+                      <span className="spinner-arc h-4 w-4" />
+                      {t.lectureLoading}
+                    </div>
+                  ) : lectureOptions.length === 0 ? (
+                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 md:col-span-2">
+                      {t.lectureEmpty}
+                    </div>
+                  ) : (
+                    lectureOptions.map((lecture) => {
+                      const isSelected = config.selectedLectureIds.includes(lecture.id)
+
+                      return (
+                        <label
+                          key={lecture.id}
+                          className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition ${
+                            isSelected
+                              ? 'border-[var(--accent)] bg-[var(--accent-soft)] shadow-depth-sm'
+                              : 'border-[var(--border)] bg-white/45 hover:bg-white/75 dark:bg-slate-900/25 dark:hover:bg-slate-900/65'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleLectureSelection(lecture.id)}
+                            className="mt-1 h-4 w-4 accent-[var(--accent)]"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-extrabold text-slate-950 dark:text-white">
+                              {lecture.name}
+                            </p>
+                            <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                              {lecture.file_type.split('/').pop()?.toUpperCase() || 'FILE'}
+                            </p>
+                          </div>
+                        </label>
+                      )
+                    })
+                  )}
+                </div>
               </div>
             </div>
           </section>
 
-          <section className="surface animate-fadeInScale p-6 sm:p-7">
-            <div className="surface-muted mb-6 p-4">
-              <div className="card-header-divider flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    {t.lectureScopeTitle}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    {t.lectureScopeBody}
-                  </p>
-                </div>
-                <span className="status-pill">
-                  <FileText className="h-3.5 w-3.5" />
-                  {selectedLectureCount} {t.selectedLectures.toLowerCase()}
-                </span>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setConfig((current) => ({
-                      ...current,
-                      selectedLectureIds: lectureOptions.map((lecture) => lecture.id),
-                    }))
-                  }
-                  disabled={!lectureOptions.length}
-                  className="secondary-button px-4 py-2 disabled:opacity-50"
-                >
-                  {t.selectAllLectures}
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setConfig((current) => ({ ...current, selectedLectureIds: [] }))
-                  }
-                  disabled={!selectedLectureCount}
-                  className="secondary-button px-4 py-2 disabled:opacity-50"
-                >
-                  {t.clearLectures}
-                </button>
-              </div>
-
-              <div className="mt-4 max-h-64 space-y-3 overflow-y-auto pr-1 custom-scrollbar">
-                {lectureLoadError ? (
-                  <div className="surface-muted border-amber-200/70 bg-amber-50/80 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200">
-                    <p>{lectureLoadError}</p>
-                    <button
-                      type="button"
-                      onClick={() => void fetchLectureOptions()}
-                      className="secondary-button mt-3 px-4 py-2"
-                    >
-                      <RefreshCcw className="h-4 w-4" />
-                      {t.retryLectures}
-                    </button>
-                  </div>
-                ) : null}
-
-                {loadingLectures ? (
-                  <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-                    <span className="spinner-arc h-4 w-4" />
-                    {t.lectureLoading}
-                  </div>
-                ) : lectureLoadError ? null : lectureOptions.length === 0 ? (
-                  <div className="text-sm text-slate-500 dark:text-slate-400">
-                    {t.lectureEmpty}
-                  </div>
-                ) : (
-                  lectureOptions.map((lecture) => {
-                    const isSelected = config.selectedLectureIds.includes(lecture.id)
-
-                    return (
-                      <label
-                        key={lecture.id}
-                        className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition-all duration-300 ${
-                          isSelected
-                            ? 'border-[var(--accent)] bg-[var(--accent-soft)]/60 shadow-depth-sm'
-                            : 'border-[var(--border)] bg-white/30 hover:translate-x-1 hover:bg-white/60 dark:bg-slate-900/20 dark:hover:bg-slate-900/55'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleLectureSelection(lecture.id)}
-                          className="mt-1 h-4 w-4 accent-[var(--accent)]"
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                            {lecture.name}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            {lecture.file_type.split('/').pop()?.toUpperCase() || 'FILE'}
-                          </p>
-                        </div>
-                      </label>
-                    )
-                  })
-                )}
-              </div>
-            </div>
-
+          <section className="surface animate-fadeInScale p-4 sm:p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-slate-800 dark:text-slate-100">
+                  {t.questionMix}
+                </p>
+                <h2 className="mt-2 text-xl font-extrabold text-slate-950 dark:text-white">
                   {t.categoriesTitle}
                 </h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                <p className="mt-2 text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
                   {t.categoriesBody}
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="mt-5 grid gap-3">
               {config.categories.map((category) => {
                 const meta = EXAM_CATEGORY_META[category.type]
 
                 return (
-                  <article key={category.type} className={`surface-muted border-l-4 p-4 ${questionAccentClasses[category.type]}`}>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                      {meta.label}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                  <article
+                    key={category.type}
+                    className={`rounded-2xl border border-slate-300/75 border-l-4 bg-white/82 px-3 py-3 shadow-depth-sm transition hover:-translate-y-0.5 hover:border-[rgba(var(--color-primary-rgb),0.3)] dark:border-slate-700/80 dark:bg-slate-900/50 ${questionAccentClasses[category.type]}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-base font-extrabold text-slate-950 dark:text-white">
+                          {meta.label}
+                        </p>
+                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">
+                          {meta.shortLabel}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-800 dark:bg-slate-800 dark:text-white">
+                        {categoryInputs[category.type].count || 0} x {categoryInputs[category.type].points || 0}
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
                       {meta.helper}
                     </p>
 
-                    <div className="mt-4 space-y-3">
-                      <label className="space-y-2">
-                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <label className="space-y-1.5">
+                        <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-800 dark:text-slate-100">
                           {t.count}
                         </span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
+                        <NumericStepper
                           value={categoryInputs[category.type].count}
-                          onChange={(event) =>
-                            updateCategoryInput(category.type, 'count', event.target.value)
+                          onChange={(value) =>
+                            updateCategoryInput(category.type, 'count', value)
                           }
                           onBlur={() => commitCategoryInput(category.type, 'count')}
-                          className="field-input px-4"
+                          label={`${meta.label} ${t.count}`}
+                          min={0}
+                          max={MAX_CATEGORY_COUNT}
+                          className="h-11 px-3"
                         />
                       </label>
 
-                      <label className="space-y-2">
-                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                      <label className="space-y-1.5">
+                        <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-800 dark:text-slate-100">
                           {t.points}
                         </span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
+                        <NumericStepper
                           value={categoryInputs[category.type].points}
-                          onChange={(event) =>
-                            updateCategoryInput(category.type, 'points', event.target.value)
+                          onChange={(value) =>
+                            updateCategoryInput(category.type, 'points', value)
                           }
                           onBlur={() => commitCategoryInput(category.type, 'points')}
-                          className="field-input px-4"
+                          label={`${meta.label} ${t.points}`}
+                          min={MIN_CATEGORY_POINTS}
+                          max={MAX_CATEGORY_POINTS}
+                          className="h-11 px-3"
                         />
                       </label>
                     </div>
@@ -1952,38 +2543,38 @@ export default function ExamBuilder() {
               })}
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="surface-muted p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              <div className="rounded-xl border border-slate-300/75 bg-white/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-900/50">
+                <p className="dashboard-stat-label truncate text-[10px] uppercase tracking-[0.12em] dark:text-slate-200">
                   {t.totalQuestions}
                 </p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
+                <p className="dashboard-stat-value mt-1 text-xl dark:text-white">
                   {totalQuestions}
                 </p>
               </div>
-              <div className="surface-muted p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              <div className="rounded-xl border border-slate-300/75 bg-white/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-900/50">
+                <p className="dashboard-stat-label truncate text-[10px] uppercase tracking-[0.12em] dark:text-slate-200">
                   {t.totalPoints}
                 </p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
+                <p className="dashboard-stat-value mt-1 text-xl dark:text-white">
                   {totalPoints}
                 </p>
               </div>
-              <div className="surface-muted p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              <div className="rounded-xl border border-slate-300/75 bg-white/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-900/50">
+                <p className="dashboard-stat-label truncate text-[10px] uppercase tracking-[0.12em] dark:text-slate-200">
                   {t.totalDuration}
                 </p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
-                  {normalizedConfig.estimatedDurationMinutes} {t.minutes}
+                <p className="dashboard-stat-value mt-1 text-xl dark:text-white">
+                  {normalizedConfig.estimatedDurationMinutes}m
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-5">
               <button
                 type="submit"
                 disabled={generating || totalQuestions < 1 || totalQuestions > 30}
-                className={`primary-button justify-center shadow-depth-md ${generating ? 'button-shimmer' : ''}`}
+                className={`primary-button min-h-12 w-full justify-center shadow-depth-md ${generating ? 'button-shimmer' : ''}`}
               >
                 {generating ? (
                   <>
@@ -2004,14 +2595,316 @@ export default function ExamBuilder() {
 
       {activeView === 'library' && (
         <section className="surface animate-fadeInScale overflow-hidden">
-          <div className="card-header-divider px-6 py-5">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+          <div className="card-header-divider px-4 py-4 sm:px-5">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
               {isTeacher ? t.savedTitleTeacher : t.savedTitleStudent}
             </h2>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               {isTeacher ? t.savedBodyTeacher : t.savedBodyStudent}
             </p>
           </div>
+
+          {isStudent && (
+            <form onSubmit={handleGenerate} className="border-b border-[var(--surface-divider)] p-4 sm:p-5">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+                <div className="rounded-[24px] border border-[var(--border)] bg-white/60 p-4 shadow-depth-sm dark:bg-slate-950/30">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <span className="eyebrow">
+                        <WandSparkles className="h-3.5 w-3.5" />
+                        {t.practice}
+                      </span>
+                      <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">
+                        {t.quickGenerateTitle}
+                      </h3>
+                      <p className="mt-2 max-w-2xl text-[15px] font-medium leading-7 text-slate-600 dark:text-slate-300">
+                        {t.quickGenerateBody}
+                      </p>
+                    </div>
+                    <span className="status-pill">
+                      <FileText className="h-3.5 w-3.5" />
+                      {selectedLectureCount} {t.selectedLectures.toLowerCase()}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_10rem]">
+                    <label className="space-y-2 lg:col-span-2">
+                      <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        {t.examTitle}
+                      </span>
+                      <input
+                        value={config.title}
+                        onChange={(event) =>
+                          setConfig((current) => ({ ...current, title: event.target.value }))
+                        }
+                        className="field-input px-4"
+                        maxLength={MAX_EXAM_TITLE_CHARS}
+                      />
+                    </label>
+
+                    <div className="min-w-0 space-y-2">
+                      <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        {t.difficulty}
+                      </span>
+                      <div className="grid grid-cols-4 gap-1 rounded-2xl border border-[var(--border)] bg-white/55 p-1 shadow-depth-sm dark:bg-slate-950/30">
+                        {difficultyOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() =>
+                              setConfig((current) => ({
+                                ...current,
+                                difficulty: option,
+                              }))
+                            }
+                            className={`min-h-10 min-w-0 rounded-xl px-2 py-2 text-xs font-semibold transition ${
+                              config.difficulty === option
+                                ? option === 'easy'
+                                  ? 'bg-emerald-100 text-emerald-800 shadow-depth-sm dark:bg-emerald-400/20 dark:text-emerald-100'
+                                  : option === 'medium'
+                                    ? 'bg-teal-100 text-teal-800 shadow-depth-sm dark:bg-teal-400/20 dark:text-teal-100'
+                                    : option === 'hard'
+                                      ? 'bg-rose-100 text-rose-800 shadow-depth-sm dark:bg-rose-400/20 dark:text-rose-100'
+                                      : 'bg-slate-900 text-white shadow-depth-sm dark:bg-white dark:text-slate-950'
+                                : 'text-slate-500 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-white'
+                            }`}
+                          >
+                            {t[option]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <label className="space-y-2">
+                      <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                        {t.duration}
+                      </span>
+                      <NumericStepper
+                        value={durationInput}
+                        onChange={(value) => setDurationInput(sanitizeNumericInput(value))}
+                        onBlur={commitDurationInput}
+                        label={t.duration}
+                        min={MIN_DURATION_MINUTES}
+                        max={MAX_DURATION_MINUTES}
+                        step={5}
+                        unit="min"
+                        className="px-4"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="mt-4 block space-y-2">
+                    <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      {t.topicFocus}
+                    </span>
+                    <textarea
+                      value={config.topicFocus}
+                      onChange={(event) =>
+                        setConfig((current) => ({
+                          ...current,
+                          topicFocus: event.target.value,
+                        }))
+                      }
+                      className="field-input min-h-24 resize-none px-4 py-3"
+                      placeholder={t.topicPlaceholder}
+                      maxLength={MAX_TOPIC_FOCUS_CHARS}
+                    />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {config.topicFocus.length}/{MAX_TOPIC_FOCUS_CHARS}
+                    </p>
+                  </label>
+
+                  <div className="mt-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-800 dark:text-slate-100">
+                        {t.lectureSources}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfig((current) => ({
+                              ...current,
+                              selectedLectureIds: lectureOptions.map((lecture) => lecture.id),
+                            }))
+                          }
+                          disabled={!lectureOptions.length}
+                          className="secondary-button px-3 py-2 text-xs disabled:opacity-50"
+                        >
+                          {t.selectAllLectures}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfig((current) => ({ ...current, selectedLectureIds: [] }))
+                          }
+                          disabled={!selectedLectureCount}
+                          className="secondary-button px-3 py-2 text-xs disabled:opacity-50"
+                        >
+                          {t.clearLectures}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="custom-scrollbar mt-3 grid max-h-52 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
+                      {lectureLoadError ? (
+                        <div className="rounded-2xl border border-amber-200/70 bg-amber-50/80 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-200 md:col-span-2">
+                          <p>{lectureLoadError}</p>
+                          <button
+                            type="button"
+                            onClick={() => void fetchLectureOptions()}
+                            className="secondary-button mt-3 px-4 py-2"
+                          >
+                            <RefreshCcw className="h-4 w-4" />
+                            {t.retryLectures}
+                          </button>
+                        </div>
+                      ) : loadingLectures ? (
+                        <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400 md:col-span-2">
+                          <span className="spinner-arc h-4 w-4" />
+                          {t.lectureLoading}
+                        </div>
+                      ) : lectureOptions.length === 0 ? (
+                        <div className="text-sm text-slate-500 dark:text-slate-400 md:col-span-2">
+                          {t.lectureEmpty}
+                        </div>
+                      ) : (
+                        lectureOptions.map((lecture) => {
+                          const isSelected = config.selectedLectureIds.includes(lecture.id)
+
+                          return (
+                            <label
+                              key={lecture.id}
+                              className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition ${
+                                isSelected
+                                  ? 'border-[var(--accent)] bg-[var(--accent-soft)] shadow-depth-sm'
+                                  : 'border-[var(--border)] bg-white/45 hover:bg-white/75 dark:bg-slate-900/25 dark:hover:bg-slate-900/65'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleLectureSelection(lecture.id)}
+                                className="mt-1 h-4 w-4 accent-[var(--accent)]"
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                                  {lecture.name}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                  {lecture.file_type.split('/').pop()?.toUpperCase() || 'FILE'}
+                                </p>
+                              </div>
+                            </label>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <aside className="rounded-[24px] border border-slate-300/70 bg-white/75 p-4 shadow-depth-sm dark:border-slate-700/70 dark:bg-slate-950/40">
+                  <p className="text-sm font-bold uppercase tracking-[0.18em] text-slate-800 dark:text-slate-100">
+                    {t.questionMix}
+                  </p>
+                  <div className="mt-3 grid gap-2">
+                    {config.categories.map((category) => {
+                      const meta = EXAM_CATEGORY_META[category.type]
+
+                      return (
+                        <div key={category.type} className={`rounded-2xl border border-slate-300/75 border-l-4 bg-white/82 px-3 py-3 shadow-depth-sm dark:border-slate-700/80 dark:bg-slate-900/50 ${questionAccentClasses[category.type]}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-base font-extrabold text-slate-950 dark:text-white">
+                                {meta.label}
+                              </p>
+                              <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">
+                                {meta.shortLabel}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-800 dark:bg-slate-800 dark:text-white">
+                              {categoryInputs[category.type].count || 0} x {categoryInputs[category.type].points || 0}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <label className="space-y-1.5">
+                              <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-800 dark:text-slate-100">
+                                {t.count}
+                              </span>
+                              <NumericStepper
+                                value={categoryInputs[category.type].count}
+                                onChange={(value) =>
+                                  updateCategoryInput(category.type, 'count', value)
+                                }
+                                onBlur={() => commitCategoryInput(category.type, 'count')}
+                                label={`${meta.label} ${t.count}`}
+                                min={0}
+                                max={MAX_CATEGORY_COUNT}
+                                className="h-11 px-3"
+                              />
+                            </label>
+
+                            <label className="space-y-1.5">
+                              <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-800 dark:text-slate-100">
+                                {t.points}
+                              </span>
+                              <NumericStepper
+                                value={categoryInputs[category.type].points}
+                                onChange={(value) =>
+                                  updateCategoryInput(category.type, 'points', value)
+                                }
+                                onBlur={() => commitCategoryInput(category.type, 'points')}
+                                label={`${meta.label} ${t.points}`}
+                                min={MIN_CATEGORY_POINTS}
+                                max={MAX_CATEGORY_POINTS}
+                                className="h-11 px-3"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    {[
+                      { label: t.totalQuestions, value: totalQuestions },
+                      { label: t.totalPoints, value: totalPoints },
+                      { label: t.totalDuration, value: `${normalizedConfig.estimatedDurationMinutes}m` },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-xl border border-slate-300/75 bg-white/80 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-900/50">
+                        <p className="truncate text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200">
+                          {item.label}
+                        </p>
+                        <p className="mt-1 text-xl font-extrabold text-slate-950 dark:text-white">
+                          {item.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={generating || totalQuestions < 1 || totalQuestions > 30}
+                    className={`primary-button mt-4 min-h-12 w-full justify-center shadow-depth-md ${generating ? 'button-shimmer' : ''}`}
+                  >
+                    {generating ? (
+                      <>
+                        <span className="spinner-arc h-4 w-4" />
+                        {t.generating}
+                      </>
+                    ) : (
+                      <>
+                        <WandSparkles className="h-4 w-4" />
+                        {t.generateStudent}
+                      </>
+                    )}
+                  </button>
+                </aside>
+              </div>
+            </form>
+          )}
 
           {loadingExams ? (
             <div className="flex min-h-56 items-center justify-center p-6">
@@ -2026,147 +2919,166 @@ export default function ExamBuilder() {
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {isTeacher ? t.emptySavedTeacher : t.emptySavedStudent}
               </p>
-              <button
-                type="button"
-                onClick={() => setActiveView('builder')}
-                className="primary-button mt-5"
-              >
-                {t.openBuilder}
-              </button>
+              {isTeacher && (
+                <button
+                  type="button"
+                  onClick={() => setActiveView('builder')}
+                  className="primary-button mt-5"
+                >
+                  {t.openBuilder}
+                </button>
+              )}
             </div>
           ) : (
-            <div className="grid gap-4 p-6 lg:grid-cols-2">
+            <div className="space-y-3 p-4 sm:p-5">
               {exams.map((exam, index) => {
-                const isPreviewing = previewExamId === exam.id
                 const isEditing = editingExamId === exam.id
                 const isDraft = exam.status === 'draft'
                 const liveState = formatLiveState(exam, t.live, t.expired)
+                const questionCounts = exam.exam_payload.questions.reduce(
+                  (counts, question) => ({
+                    ...counts,
+                    [question.type]: counts[question.type] + 1,
+                  }),
+                  {
+                    multiple_choice: 0,
+                    fill_in_blank: 0,
+                    open_ended: 0,
+                  } as Record<ExamQuestionType, number>
+                )
+                const submissionCount = attempts.filter((attempt) => attempt.exam_id === exam.id).length
+                const statusLabel = isDraft
+                  ? t.draft
+                  : exam.status === 'archived'
+                    ? t.archived
+                    : isTeacher
+                      ? liveState || t.publishedOn
+                      : t.readyToJoin
+                const sourceLabel =
+                  exam.topic_focus ||
+                  exam.exam_payload.topicFocus ||
+                  exam.description ||
+                  (isTeacher ? t.officialExam : t.practiceExam)
+                const metaLine = [
+                  sourceLabel,
+                  exam.exam_kind === 'official' ? t.officialResults.toLowerCase() : t.practiceResults.toLowerCase(),
+                  statusLabel.toLowerCase(),
+                  exam.difficulty,
+                ].filter(Boolean).join(' - ')
+                const chipItems = [
+                  `${exam.question_count} ${t.count}`,
+                  `${exam.estimated_duration_minutes} ${t.minShort}`,
+                  `${exam.total_points} ${t.ptsShort}`,
+                  `${questionCounts.multiple_choice} ${EXAM_CATEGORY_META.multiple_choice.shortLabel}`,
+                  `${questionCounts.fill_in_blank} ${EXAM_CATEGORY_META.fill_in_blank.shortLabel}`,
+                  `${questionCounts.open_ended} ${EXAM_CATEGORY_META.open_ended.shortLabel}`,
+                  `${submissionCount} ${t.submissions}`,
+                ]
 
                 return (
                   <article
                     key={exam.id}
                     style={{ '--i': index } as CSSProperties}
-                    className="surface-muted animate-fadeInUp p-5 [animation-delay:calc(var(--i)*50ms)] [animation-fill-mode:both]"
+                    className="group relative overflow-hidden rounded-[26px] border border-[var(--border)] bg-white/70 p-4 shadow-depth-sm transition hover:-translate-y-1 hover:border-[rgba(var(--color-primary-rgb),0.32)] hover:bg-white/82 hover:shadow-depth-lg dark:bg-slate-950/30 [animation-delay:calc(var(--i)*50ms)] [animation-fill-mode:both] animate-fadeInUp"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-teal-500 via-emerald-400 to-sky-400 opacity-75" />
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                      <div className="min-w-0 pt-1">
+                        <h3 className="text-lg font-extrabold text-slate-950 dark:text-white">
                           {exam.title}
                         </h3>
-                        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                          {exam.description || exam.topic_focus || ' '}
+                        <p className="mt-2 text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
+                          {metaLine}
                         </p>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {chipItems.map((item) => (
+                            <span
+                              key={item}
+                              className="rounded-full border border-indigo-300 bg-indigo-200 px-3 py-1 text-[11px] font-extrabold text-indigo-950 shadow-depth-sm dark:border-indigo-300/35 dark:bg-indigo-400/28 dark:text-indigo-50"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <span className="status-pill">
-                        {isDraft ? t.draft : isTeacher ? liveState : t.practice}
-                      </span>
-                    </div>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                          {t.totalQuestions}
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                          {exam.question_count}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                          {t.totalPoints}
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                          {exam.total_points}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                          {t.totalDuration}
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                          {exam.estimated_duration_minutes}m
-                        </p>
-                      </div>
-                    </div>
+                      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                        {isStudent && (
+                          <Link href={`/exam/${exam.id}`} className="primary-button min-h-10 justify-center px-4 py-2 text-sm shadow-depth-sm">
+                            <Play className="h-4 w-4" />
+                            {t.startExam}
+                          </Link>
+                        )}
 
-                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 dark:text-slate-400">
-                      <span>{isDraft ? t.draftedOn : t.publishedOn}</span>
-                      <span>{formatDate(isDraft ? exam.created_at : exam.published_at || exam.created_at)}</span>
-                      {exam.live_until && (
-                        <>
-                          <span>{t.liveUntil}</span>
-                          <span>{formatDate(exam.live_until)}</span>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                      {isStudent && (
-                        <Link href={`/exam/${exam.id}`} className="primary-button w-full justify-center">
-                          <Play className="h-4 w-4" />
-                          {t.startExam}
-                        </Link>
-                      )}
-
-                      {isTeacher && (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewExamId(isPreviewing ? null : exam.id)}
-                          className="secondary-button w-full justify-center"
-                        >
-                          <Eye className="h-4 w-4" />
-                          {isPreviewing ? t.hidePreview : t.preview}
-                        </button>
-                      )}
-
-                      {isTeacher && isDraft && (
-                        <>
+                        {isTeacher && (
                           <button
                             type="button"
                             onClick={() => startEditingDraft(exam)}
-                            className="secondary-button w-full justify-center"
+                            className="primary-button min-h-10 justify-center px-4 py-2 text-sm"
                           >
-                            <PencilLine className="h-4 w-4" />
-                            {t.editDraft}
+                            <Eye className="h-4 w-4" />
+                            {isDraft ? t.reviewDraft : t.manageExam}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => void handlePublishExam(exam)}
-                            disabled={busyExamId === exam.id}
-                            className="primary-button w-full justify-center"
-                          >
-                            {busyExamId === exam.id ? (
-                              <span className="spinner-arc h-4 w-4" />
-                            ) : (
-                              <Radio className="h-4 w-4" />
-                            )}
-                            {t.publishLive}
-                          </button>
-                        </>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteExam(exam)}
-                        disabled={busyExamId === exam.id}
-                        data-destructive="true"
-                        className="secondary-button w-full justify-center text-rose-600 dark:text-rose-300"
-                      >
-                        {busyExamId === exam.id ? (
-                          <span className="spinner-arc h-4 w-4" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
                         )}
-                        {t.deleteExam}
-                      </button>
+
+                        {isTeacher && isDraft && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => startEditingDraft(exam)}
+                              className="secondary-button min-h-10 justify-center px-4 py-2 text-sm"
+                            >
+                              <PencilLine className="h-4 w-4" />
+                              {t.editDraft}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handlePublishExam(exam)}
+                              disabled={busyExamId === exam.id}
+                              className="primary-button min-h-10 justify-center px-4 py-2 text-sm"
+                            >
+                              {busyExamId === exam.id ? (
+                                <span className="spinner-arc h-4 w-4" />
+                              ) : (
+                                <Radio className="h-4 w-4" />
+                              )}
+                              {t.publishLive}
+                            </button>
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteExam(exam)}
+                          disabled={busyExamId === exam.id}
+                          data-destructive="true"
+                          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-rose-300 bg-rose-100 px-4 py-2 text-sm font-extrabold text-rose-800 transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-300/30 dark:bg-rose-400/16 dark:text-rose-50"
+                        >
+                          {busyExamId === exam.id ? (
+                            <span className="spinner-arc h-4 w-4" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                          {t.deleteExam}
+                        </button>
+                      </div>
                     </div>
 
                     {isEditing && draftEditor && (
-                      <div className="mt-5 rounded-2xl border border-[var(--border)] bg-white/45 p-4 dark:bg-slate-950/35">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            {t.editDraft}
-                          </p>
+                      <div className="mt-5 rounded-[24px] border border-[var(--border)] bg-white/62 p-4 shadow-depth-sm dark:bg-slate-950/35">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <span className="eyebrow">
+                              {exam.status === 'archived' ? t.archived : isDraft ? t.draft : t.publishedOn}
+                            </span>
+                            <h4 className="mt-3 text-xl font-extrabold text-slate-950 dark:text-white">
+                              {t.editDraft}
+                            </h4>
+                            <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+                              Update the official exam, check the draft preview, then save before opening the live window.
+                            </p>
+                          </div>
                           <button
                             type="button"
                             onClick={cancelDraftEdit}
@@ -2178,9 +3090,105 @@ export default function ExamBuilder() {
                         </div>
 
                         <div className="mt-4 space-y-4">
+                          <section className="rounded-2xl border border-[var(--border)] bg-white/68 p-4 dark:bg-slate-950/30">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                              <div>
+                                <p className="text-base font-extrabold text-slate-950 dark:text-white">
+                                  {exam.status === 'published' ? t.reopenLive : t.publishLive}
+                                </p>
+                                <p className="mt-1 text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
+                                  Publishing opens a live window for {draftEditor.estimatedDurationMinutes} minutes.
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void handlePublishExam(exam)}
+                                  disabled={busyExamId === exam.id}
+                                  className="primary-button min-h-10 px-4 py-2 text-sm"
+                                >
+                                  {busyExamId === exam.id ? (
+                                    <span className="spinner-arc h-4 w-4" />
+                                  ) : (
+                                    <Radio className="h-4 w-4" />
+                                  )}
+                                  {exam.status === 'published' ? t.reopenLive : t.publishLive}
+                                </button>
+                                {exam.status !== 'archived' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleArchiveExam(exam)}
+                                    disabled={busyExamId === exam.id}
+                                    className="secondary-button min-h-10 px-4 py-2 text-sm"
+                                  >
+                                    <Archive className="h-4 w-4" />
+                                    {t.archiveExam}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </section>
+
+                          <section className="rounded-2xl border border-[var(--border)] bg-white/68 p-4 dark:bg-slate-950/30">
+                            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_12rem_10rem]">
+                              <label className="space-y-2">
+                                <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                                  {t.examTitle}
+                                </span>
+                                <input
+                                  value={draftEditor.title}
+                                  onChange={(event) => updateDraftMeta('title', event.target.value)}
+                                  className="field-input px-4"
+                                  maxLength={MAX_EXAM_TITLE_CHARS}
+                                />
+                              </label>
+
+                              <label className="space-y-2">
+                                <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                                  {t.difficulty}
+                                </span>
+                                <select
+                                  value={draftEditor.difficulty}
+                                  onChange={(event) =>
+                                    updateDraftMeta('difficulty', event.target.value as ExamDifficulty)
+                                  }
+                                  className="field-input px-4"
+                                >
+                                  {difficultyOptions.map((option) => (
+                                    <option key={option} value={option}>
+                                      {t[option]}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+
+                              <label className="space-y-2">
+                                <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                                  {t.duration}
+                                </span>
+                                <NumericStepper
+                                  value={String(draftEditor.estimatedDurationMinutes)}
+                                  onChange={(value) =>
+                                    updateDraftMeta(
+                                      'estimatedDurationMinutes',
+                                      normalizeDurationValue(value, draftEditor.estimatedDurationMinutes)
+                                    )
+                                  }
+                                  onBlur={() => undefined}
+                                  label={t.duration}
+                                  min={MIN_DURATION_MINUTES}
+                                  max={MAX_DURATION_MINUTES}
+                                  step={5}
+                                  unit="min"
+                                  className="px-4"
+                                />
+                              </label>
+                            </div>
+                          </section>
+
                           <section className="rounded-2xl border border-[var(--border)] bg-white/55 p-4 dark:bg-slate-950/30">
                             <div className="flex flex-wrap items-center justify-between gap-3">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                              <p className="dashboard-stat-label text-xs uppercase tracking-[0.18em] dark:text-slate-200">
                                 {t.editorQuestions}
                               </p>
                               <span className="status-pill">
@@ -2254,9 +3262,11 @@ export default function ExamBuilder() {
                                             key={`${question.id}-option-${optionIndex}`}
                                             className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center"
                                           >
-                                            <span
+                                            <button
+                                              type="button"
+                                              onClick={() => setDraftCorrectOption(question.id, option)}
                                               title={isCorrectOption ? t.correctAnswer : t.options}
-                                              className={`flex h-11 w-11 items-center justify-center rounded-full border ${
+                                              className={`flex h-11 w-11 items-center justify-center rounded-full border transition hover:-translate-y-0.5 ${
                                                 isCorrectOption
                                                   ? 'border-teal-300 bg-teal-50 text-teal-700 dark:border-teal-300/40 dark:bg-teal-400/15 dark:text-teal-200'
                                                   : 'border-[var(--border)] bg-white/80 text-slate-400 dark:bg-slate-950/50 dark:text-slate-500'
@@ -2270,7 +3280,7 @@ export default function ExamBuilder() {
                                               <span className="sr-only">
                                                 {isCorrectOption ? t.correctAnswer : t.options}
                                               </span>
-                                            </span>
+                                            </button>
                                             <input
                                               value={option}
                                               onChange={(event) =>
@@ -2298,6 +3308,25 @@ export default function ExamBuilder() {
                                         <Plus className="h-4 w-4" />
                                         {t.addOption}
                                       </button>
+                                      <label className="block space-y-2">
+                                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                                          {t.feedback}
+                                        </span>
+                                        <textarea
+                                          value={question.explanation}
+                                          onChange={(event) =>
+                                            updateDraftQuestion(question.id, (currentQuestion) =>
+                                              currentQuestion.type === 'multiple_choice'
+                                                ? {
+                                                    ...currentQuestion,
+                                                    explanation: event.target.value,
+                                                  }
+                                                : currentQuestion
+                                            )
+                                          }
+                                          className="field-input min-h-20 resize-y px-4 py-3"
+                                        />
+                                      </label>
                                     </div>
                                   )}
 
@@ -2357,6 +3386,26 @@ export default function ExamBuilder() {
                                           {t.addAcceptedAnswer}
                                         </button>
                                       </div>
+
+                                      <label className="block space-y-2">
+                                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                                          {t.feedback}
+                                        </span>
+                                        <textarea
+                                          value={question.explanation}
+                                          onChange={(event) =>
+                                            updateDraftQuestion(question.id, (currentQuestion) =>
+                                              currentQuestion.type === 'fill_in_blank'
+                                                ? {
+                                                    ...currentQuestion,
+                                                    explanation: event.target.value,
+                                                  }
+                                                : currentQuestion
+                                            )
+                                          }
+                                          className="field-input min-h-20 resize-y px-4 py-3"
+                                        />
+                                      </label>
                                     </div>
                                   )}
 
@@ -2419,6 +3468,33 @@ export default function ExamBuilder() {
                                 </article>
                               ))}
                             </div>
+
+                            <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--border)] pt-4">
+                              <button
+                                type="button"
+                                onClick={() => addDraftQuestion('multiple_choice')}
+                                className="secondary-button px-4 py-2 text-sm"
+                              >
+                                <Plus className="h-4 w-4" />
+                                {EXAM_CATEGORY_META.multiple_choice.label}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => addDraftQuestion('fill_in_blank')}
+                                className="secondary-button px-4 py-2 text-sm"
+                              >
+                                <Plus className="h-4 w-4" />
+                                {EXAM_CATEGORY_META.fill_in_blank.label}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => addDraftQuestion('open_ended')}
+                                className="secondary-button px-4 py-2 text-sm"
+                              >
+                                <Plus className="h-4 w-4" />
+                                {EXAM_CATEGORY_META.open_ended.label}
+                              </button>
+                            </div>
                           </section>
                         </div>
 
@@ -2448,22 +3524,12 @@ export default function ExamBuilder() {
                             ) : (
                               <Save className="h-4 w-4" />
                             )}
-                            {t.saveDraft}
+                            {t.saveExam}
                           </button>
                         </div>
                       </div>
                     )}
 
-                    {isTeacher && isPreviewing && (
-                      <ExamQuestionPreview
-                        exam={exam.exam_payload}
-                        labels={{
-                          correctAnswer: t.correctAnswer,
-                          sampleAnswer: t.sampleAnswer,
-                          options: t.options,
-                        }}
-                      />
-                    )}
                   </article>
                 )
               })}
@@ -2474,34 +3540,28 @@ export default function ExamBuilder() {
 
       {activeView === 'results' && (
         <section className="surface animate-fadeInScale overflow-hidden">
-          <div className="card-header-divider px-6 py-5">
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-              {isTeacher ? t.resultsTitleTeacher : t.resultsTitleStudent}
-            </h2>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              {isTeacher ? t.resultsBodyTeacher : t.resultsBodyStudent}
-            </p>
+          <div className="card-header-divider flex flex-col gap-4 px-4 py-4 sm:px-5 md:flex-row md:items-start md:justify-between">
+            <div>
+              <span className="eyebrow">
+                <BarChart3 className="h-3.5 w-3.5" />
+                {isTeacher ? t.officialResults : t.resultsTab}
+              </span>
+              <h2 className={`${isStudent ? 'mt-3 text-2xl' : 'mt-3 text-xl'} font-extrabold text-slate-950 dark:text-white`}>
+                {isTeacher ? t.resultsTitleTeacher : t.resultsHeroTitle}
+              </h2>
+              <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                {isTeacher ? t.resultsBodyTeacher : t.resultsHeroBody}
+              </p>
+            </div>
             {isStudent && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {[
-                  { key: 'all' as const, label: t.allResults },
-                  { key: 'official' as const, label: t.officialResults },
-                  { key: 'practice' as const, label: t.practiceResults },
-                ].map((filter) => (
-                  <button
-                    key={filter.key}
-                    type="button"
-                    onClick={() => setResultKindFilter(filter.key)}
-                    className={`secondary-button px-4 py-2 ${
-                      resultKindFilter === filter.key
-                        ? 'border-[rgba(var(--color-primary-rgb),0.35)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                        : ''
-                    }`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={() => void fetchAttempts()}
+                className="secondary-button self-start px-4 py-2"
+              >
+                <RefreshCcw className="h-4 w-4" />
+                {t.refresh}
+              </button>
             )}
           </div>
 
@@ -2511,17 +3571,17 @@ export default function ExamBuilder() {
             </div>
           ) : isTeacher ? (
             teacherExamSummaries.length === 0 ? (
-              <div className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
+              <div className="p-10 text-center text-sm font-semibold text-slate-700 dark:text-slate-300">
                 {t.noExamResults}
               </div>
             ) : (
-              <div className="grid gap-5 p-6 lg:grid-cols-[0.82fr_1.18fr]">
+            <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[0.82fr_1.18fr]">
                 <div className="space-y-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                    <p className="dashboard-stat-label text-xs uppercase tracking-[0.2em] dark:text-slate-200">
                       {t.resultExamPicker}
                     </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    <p className="mt-2 text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
                       {t.resultExamPickerBody}
                     </p>
                   </div>
@@ -2534,18 +3594,18 @@ export default function ExamBuilder() {
                         key={summary.exam.id}
                         type="button"
                         onClick={() => setSelectedResultExamId(summary.exam.id)}
-                        className={`w-full rounded-[26px] border p-4 text-left transition ${
+                        className={`w-full rounded-[22px] border p-4 text-left transition ${
                           selected
-                            ? 'border-[rgba(var(--color-primary-rgb),0.42)] bg-[var(--accent-soft)] shadow-depth-sm'
-                            : 'border-[var(--border)] bg-white/70 hover:border-[rgba(var(--color-primary-rgb),0.28)] hover:bg-white dark:bg-slate-900/45 dark:hover:bg-slate-900/70'
+                            ? 'border-[rgba(var(--color-primary-rgb),0.48)] bg-[var(--accent-soft)] shadow-depth-sm'
+                            : 'border-[var(--border)] bg-white/76 hover:border-[rgba(var(--color-primary-rgb),0.32)] hover:bg-white dark:bg-slate-900/45 dark:hover:bg-slate-900/70'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                            <h3 className="text-base font-extrabold text-slate-950 dark:text-white">
                               {summary.exam.title}
                             </h3>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                               {t.resultLatestSubmission}: {summary.latestAttempt ? formatDate(summary.latestAttempt.created_at) : '-'}
                             </p>
                           </div>
@@ -2553,23 +3613,23 @@ export default function ExamBuilder() {
                         </div>
 
                         <div className="mt-4 grid grid-cols-3 gap-2">
-                          <div className="rounded-2xl border border-[var(--border)] bg-white/65 px-3 py-2 dark:bg-slate-950/35">
-                            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                          <div className="rounded-2xl border border-slate-300/75 bg-white/75 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-950/35">
+                            <p className="dashboard-stat-label text-[0.65rem] uppercase tracking-[0.16em] dark:text-slate-200">
                               {t.resultAttempts}
                             </p>
-                            <p className="mt-1 font-semibold text-slate-900 dark:text-white">{summary.attempts.length}</p>
+                            <p className="dashboard-stat-value mt-1 dark:text-white">{summary.attempts.length}</p>
                           </div>
-                          <div className="rounded-2xl border border-[var(--border)] bg-white/65 px-3 py-2 dark:bg-slate-950/35">
-                            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                          <div className="rounded-2xl border border-slate-300/75 bg-white/75 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-950/35">
+                            <p className="dashboard-stat-label text-[0.65rem] uppercase tracking-[0.16em] dark:text-slate-200">
                               {t.resultStudents}
                             </p>
-                            <p className="mt-1 font-semibold text-slate-900 dark:text-white">{summary.studentCount}</p>
+                            <p className="dashboard-stat-value mt-1 dark:text-white">{summary.studentCount}</p>
                           </div>
-                          <div className="rounded-2xl border border-[var(--border)] bg-white/65 px-3 py-2 dark:bg-slate-950/35">
-                            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                          <div className="rounded-2xl border border-slate-300/75 bg-white/75 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-950/35">
+                            <p className="dashboard-stat-label text-[0.65rem] uppercase tracking-[0.16em] dark:text-slate-200">
                               {t.resultAverageScore}
                             </p>
-                            <p className="mt-1 font-semibold text-slate-900 dark:text-white">
+                            <p className="dashboard-stat-value mt-1 dark:text-white">
                               {summary.averageScore === null ? '-' : `${summary.averageScore}%`}
                             </p>
                           </div>
@@ -2579,13 +3639,13 @@ export default function ExamBuilder() {
                   })}
                 </div>
 
-                <div className="rounded-[30px] border border-[var(--border)] bg-white/58 p-5 dark:bg-slate-950/35">
+                <div className="rounded-[24px] border border-[var(--border)] bg-white/66 p-4 shadow-depth-sm dark:bg-slate-950/35">
                   <div className="flex flex-col gap-3 border-b border-[var(--border)] pb-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                      <p className="dashboard-stat-label text-xs uppercase tracking-[0.2em] dark:text-slate-200">
                         {t.studentResult}
                       </p>
-                      <h3 className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
+                      <h3 className="mt-2 text-xl font-extrabold text-slate-950 dark:text-white">
                         {selectedResultExam?.title ?? t.officialExam}
                       </h3>
                     </div>
@@ -2595,22 +3655,22 @@ export default function ExamBuilder() {
                   </div>
 
                   {selectedStudentResultGroups.length === 0 ? (
-                    <div className="py-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                    <div className="py-12 text-center text-sm font-semibold text-slate-700 dark:text-slate-300">
                       {t.noStudentResults}
                     </div>
                   ) : (
                     <div className="mt-5 space-y-4">
                       {selectedStudentResultGroups.map((group) => (
-                        <article key={group.userId} className="surface-muted p-5">
+                        <article key={group.userId} className="surface-muted p-4">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <h4 className="text-lg font-semibold text-slate-900 dark:text-white">
+                              <h4 className="text-lg font-extrabold text-slate-950 dark:text-white">
                                 {getStudentDisplayName(group.profile)}
                               </h4>
-                              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                              <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-300">
                                 {group.profile?.email || t.studentEmailMissing}
                               </p>
-                              <p className="mt-2 max-w-full break-all text-xs text-slate-400 dark:text-slate-500">
+                              <p className="mt-2 max-w-full break-all text-xs font-medium text-slate-600 dark:text-slate-300">
                                 {t.userIdLabel}: {group.userId}
                               </p>
                             </div>
@@ -2620,62 +3680,94 @@ export default function ExamBuilder() {
                           </div>
 
                           <div className="mt-5 space-y-3">
-                            {group.attempts.map((attempt, attemptIndex) => (
-                              <div key={attempt.id} className="rounded-[24px] border border-[var(--border)] bg-white/72 p-4 dark:bg-slate-950/35">
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                                      {t.attemptLabel} {group.attempts.length - attemptIndex}
-                                    </p>
-                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                      {t.attemptSubmitted}: {formatDate(attempt.created_at)}
-                                    </p>
-                                  </div>
-                                  <span className="status-pill">{attempt.status}</span>
-                                </div>
+                            {group.attempts.map((attempt, attemptIndex) => {
+                              const reviewOpen = expandedStudentAttemptId === attempt.id
+                              const reviewItems = reviewOpen ? buildStudentReviewItems(attempt) : []
+                              const correctCount = reviewItems.filter((item) => item.status === 'correct').length
+                              const wrongCount = reviewItems.filter((item) => item.status === 'incorrect').length
+                              const maxScore = attempt.objective_max_score || 1
+                              const percent = Math.round((attempt.objective_score / maxScore) * 100)
 
-                                <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                                  <div className="rounded-2xl border border-[var(--border)] px-3 py-3">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                                      {t.attemptScore}
-                                    </p>
-                                    <p className="mt-2 font-semibold text-slate-900 dark:text-white">
-                                      {attempt.objective_score}/{attempt.objective_max_score}
-                                    </p>
+                              return (
+                                <div key={attempt.id} className="rounded-[24px] border border-[var(--border)] bg-white/78 p-4 shadow-depth-sm dark:bg-slate-950/35">
+                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                      <p className="text-sm font-extrabold text-slate-950 dark:text-white">
+                                        {t.attemptLabel} {group.attempts.length - attemptIndex}
+                                      </p>
+                                      <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                        {t.attemptSubmitted}: {formatDate(attempt.created_at)}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="rounded-lg border border-emerald-300 bg-emerald-200 px-3 py-2 text-sm font-extrabold text-emerald-950 shadow-depth-sm dark:border-emerald-300/35 dark:bg-emerald-400/24 dark:text-emerald-50">
+                                        {percent}%
+                                      </span>
+                                      <span className="status-pill">{attempt.status}</span>
+                                    </div>
                                   </div>
-                                  <div className="rounded-2xl border border-[var(--border)] px-3 py-3">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                                      {t.answersSubmitted}
-                                    </p>
-                                    <p className="mt-2 font-semibold text-slate-900 dark:text-white">
-                                      {attempt.attempt_payload.answeredCount}/{attempt.attempt_payload.totalQuestions}
-                                    </p>
+
+                                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                                    <div className="rounded-2xl border border-[var(--border)] px-3 py-3">
+                                      <p className="dashboard-stat-label text-xs uppercase tracking-[0.16em] dark:text-slate-200">
+                                        {t.attemptScore}
+                                      </p>
+                                      <p className="dashboard-stat-value mt-2 dark:text-white">
+                                        {attempt.objective_score}/{attempt.objective_max_score}
+                                      </p>
+                                    </div>
+                                    <div className="rounded-2xl border border-[var(--border)] px-3 py-3">
+                                      <p className="dashboard-stat-label text-xs uppercase tracking-[0.16em] dark:text-slate-200">
+                                        {t.answersSubmitted}
+                                      </p>
+                                      <p className="dashboard-stat-value mt-2 dark:text-white">
+                                        {attempt.attempt_payload.answeredCount}/{attempt.attempt_payload.totalQuestions}
+                                      </p>
+                                    </div>
+                                    <div className="rounded-2xl border border-[var(--border)] px-3 py-3">
+                                      <p className="dashboard-stat-label text-xs uppercase tracking-[0.16em] dark:text-slate-200">
+                                        {t.attemptViolations}
+                                      </p>
+                                      <p className="dashboard-stat-value mt-2 dark:text-white">
+                                        {attempt.violations_count}
+                                      </p>
+                                    </div>
                                   </div>
-                                  <div className="rounded-2xl border border-[var(--border)] px-3 py-3">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                                      {t.attemptViolations}
-                                    </p>
-                                    <p className="mt-2 font-semibold text-slate-900 dark:text-white">
-                                      {attempt.violations_count}
-                                    </p>
+
+                                  <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-[var(--border)] pt-4">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setExpandedStudentAttemptId((current) =>
+                                          current === attempt.id ? null : attempt.id
+                                        )
+                                      }
+                                      className="inline-flex items-center gap-2 rounded-full px-0 py-2 text-sm font-extrabold text-teal-800 transition hover:text-teal-950 dark:text-teal-100 dark:hover:text-white"
+                                    >
+                                      <Play className={`h-3.5 w-3.5 transition ${reviewOpen ? 'rotate-90' : ''}`} />
+                                      {t.reviewAnswers}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleDeleteAttempt(attempt)}
+                                      disabled={deletingAttemptId === attempt.id}
+                                      data-destructive="true"
+                                      className="inline-flex items-center justify-center gap-2 rounded-full border border-rose-300 bg-rose-100 px-4 py-2 text-sm font-extrabold text-rose-800 transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-300/30 dark:bg-rose-400/16 dark:text-rose-50"
+                                    >
+                                      {deletingAttemptId === attempt.id ? (
+                                        <span className="spinner-arc h-4 w-4" />
+                                      ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                      )}
+                                      {t.deleteResult}
+                                    </button>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleDeleteAttempt(attempt)}
-                                    disabled={deletingAttemptId === attempt.id}
-                                    data-destructive="true"
-                                    className="secondary-button justify-center text-rose-600 dark:text-rose-300"
-                                  >
-                                    {deletingAttemptId === attempt.id ? (
-                                      <span className="spinner-arc h-4 w-4" />
-                                    ) : (
-                                      <Trash2 className="h-4 w-4" />
-                                    )}
-                                    {t.deleteResult}
-                                  </button>
+
+                                  {reviewOpen && renderAttemptReviewPanel(reviewItems, correctCount, wrongCount)}
                                 </div>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         </article>
                       ))}
@@ -2685,85 +3777,250 @@ export default function ExamBuilder() {
               </div>
             )
           ) : filteredAttempts.length === 0 ? (
-            <div className="p-10 text-center text-sm text-slate-500 dark:text-slate-400">
-              {t.noAttempts}
+            <div className="flex min-h-72 flex-col items-center justify-center p-8 text-center">
+              <div className="icon-shell h-14 w-14 text-[var(--accent)]">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <h3 className="mt-5 text-xl font-semibold text-slate-900 dark:text-white">
+                {t.resultEmptyTitle}
+              </h3>
+              <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
+                {t.resultEmptyBody}
+              </p>
             </div>
           ) : (
-            <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 p-4 sm:p-5 xl:grid-cols-2">
               {filteredAttempts.map((attempt) => {
                 const examKind = getAttemptExamKind(attempt)
+                const percent = getAttemptScorePercent(attempt)
+                const reviewOpen = expandedStudentAttemptId === attempt.id
+                const reviewItems = reviewOpen ? buildStudentReviewItems(attempt) : []
+                const correctCount = reviewItems.filter((item) => item.status === 'correct').length
+                const wrongCount = reviewItems.filter((item) => item.status === 'incorrect').length
+                const statusLabel = attempt.status === 'auto_submitted' ? 'Auto submitted' : 'Completed'
+                const canDeleteAttempt = examKind !== 'official'
 
                 return (
-                  <article key={attempt.id} className="surface-muted p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  <article
+                    key={attempt.id}
+                    className="rounded-xl border border-[var(--border)] bg-white/72 p-5 shadow-depth-sm transition hover:-translate-y-0.5 hover:border-[rgba(var(--color-primary-rgb),0.3)] hover:bg-white/84 dark:bg-slate-950/30 dark:hover:bg-slate-900/55"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-lg font-extrabold text-slate-950 dark:text-white">
                           {getAttemptExamTitle(attempt)}
                         </h3>
-                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                          {t.attemptSubmitted}: {formatDate(attempt.created_at)}
+                        <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                          {formatResultDate(attempt.created_at)} - {attempt.attempt_payload.totalQuestions} questions
                         </p>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <span className="status-pill">
-                          {examKind === 'official' ? t.officialResults : t.practiceResults}
-                        </span>
-                        <span className="status-pill">{attempt.status}</span>
+                      <span className="rounded-lg border border-emerald-300 bg-emerald-200 px-4 py-3 text-xl font-extrabold text-emerald-950 shadow-depth-sm dark:border-emerald-300/35 dark:bg-emerald-400/24 dark:text-emerald-50">
+                        {percent}%
+                      </span>
+                    </div>
+
+                    <p className="mt-4 text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {t.attemptScore}: {attempt.objective_score} points
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-indigo-300 bg-indigo-200 px-3 py-1 text-[11px] font-extrabold text-indigo-950 shadow-depth-sm dark:border-indigo-300/30 dark:bg-indigo-400/24 dark:text-indigo-50">
+                        {statusLabel}
+                      </span>
+                      <span className="rounded-full border border-indigo-300 bg-indigo-200 px-3 py-1 text-[11px] font-extrabold text-indigo-950 shadow-depth-sm dark:border-indigo-300/30 dark:bg-indigo-400/24 dark:text-indigo-50">
+                        {attempt.violations_count} {t.attemptViolations}
+                      </span>
+                      <span className="rounded-full border border-indigo-300 bg-indigo-200 px-3 py-1 text-[11px] font-extrabold text-indigo-950 shadow-depth-sm dark:border-indigo-300/30 dark:bg-indigo-400/24 dark:text-indigo-50">
+                        {examKind === 'official' ? t.officialResults : t.practiceResults}
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-sm font-medium leading-6 text-slate-700 dark:text-slate-300">
+                      {getAttemptAdvice(attempt)}
+                    </p>
+
+                    <div className="mt-4 border-t border-[var(--border)] pt-4">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedStudentAttemptId((current) =>
+                              current === attempt.id ? null : attempt.id
+                            )
+                          }
+                          className="inline-flex items-center gap-2 rounded-full px-0 py-2 text-sm font-extrabold text-teal-800 transition hover:text-teal-950 dark:text-teal-100 dark:hover:text-white"
+                        >
+                          <Play className={`h-3.5 w-3.5 transition ${reviewOpen ? 'rotate-90' : ''}`} />
+                          {t.reviewAnswers}
+                        </button>
+
+                        {canDeleteAttempt && (
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteAttempt(attempt)}
+                            disabled={deletingAttemptId === attempt.id}
+                            data-destructive="true"
+                            className="inline-flex items-center gap-2 rounded-full border border-rose-300 bg-rose-100 px-3 py-2 text-sm font-extrabold text-rose-800 transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-300/30 dark:bg-rose-400/16 dark:text-rose-50"
+                          >
+                            {deletingAttemptId === attempt.id ? (
+                              <span className="spinner-arc h-4 w-4" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                            {t.deleteResult}
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                          {t.attemptScore}
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                          {attempt.objective_score}/{attempt.objective_max_score}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                          {t.attemptViolations}
-                        </p>
-                        <p className="mt-2 text-xl font-semibold text-slate-900 dark:text-white">
-                          {attempt.violations_count}
-                        </p>
-                      </div>
-                    </div>
+                    {reviewOpen && (
+                      <div className="mt-5 animate-fadeInScale border-t border-[var(--border)] pt-5">
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                          <div>
+                            <h4 className="text-base font-semibold text-slate-950 dark:text-white">
+                              {t.answerReview}
+                            </h4>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                              Question, submitted answer, correct answer, and grading feedback.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200">
+                              {correctCount} {t.correct.toLowerCase()}
+                            </span>
+                            <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700 dark:bg-rose-400/15 dark:text-rose-100">
+                              {wrongCount} {t.incorrect.toLowerCase()}
+                            </span>
+                          </div>
+                        </div>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                          {t.answersSubmitted}
-                        </p>
-                        <p className="mt-2 text-base font-semibold text-slate-900 dark:text-white">
-                          {attempt.attempt_payload.answeredCount}/{attempt.attempt_payload.totalQuestions}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-[var(--border)] px-4 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                          {t.attemptStatus}
-                        </p>
-                        <p className="mt-2 text-base font-semibold text-slate-900 dark:text-white">
-                          {attempt.status}
-                        </p>
-                      </div>
-                    </div>
+                        <div className="space-y-3">
+                          {reviewItems.map((item, index) => {
+                        const statusLabel =
+                          item.status === 'correct'
+                            ? t.correct
+                            : item.status === 'partial'
+                              ? t.partial
+                              : t.incorrect
+                        const statusClass =
+                          item.status === 'correct'
+                            ? 'border-l-emerald-400 bg-emerald-50/50 dark:bg-emerald-400/10'
+                            : item.status === 'partial'
+                              ? 'border-l-amber-400 bg-amber-50/55 dark:bg-amber-400/10'
+                              : 'border-l-rose-400 bg-rose-50/45 dark:bg-rose-400/10'
 
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteAttempt(attempt)}
-                      disabled={deletingAttemptId === attempt.id}
-                      data-destructive="true"
-                      className="secondary-button mt-4 w-full justify-center text-rose-600 dark:text-rose-300"
-                    >
-                      {deletingAttemptId === attempt.id ? (
-                        <span className="spinner-arc h-4 w-4" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                      {t.deleteResult}
-                    </button>
+                            return (
+                          <article
+                            key={item.id}
+                            className={`rounded-[22px] border border-[var(--border)] border-l-4 p-4 shadow-depth-sm ${statusClass}`}
+                          >
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="status-pill">
+                                  {t.question} {index + 1}
+                                </span>
+                                <span className="status-pill">{EXAM_CATEGORY_META[item.type].label}</span>
+                                <span className="status-pill">
+                                  {item.earnedPoints}/{item.points} pts
+                                </span>
+                              </div>
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                  item.status === 'correct'
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200'
+                                    : item.status === 'partial'
+                                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-100'
+                                      : 'bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-100'
+                                }`}
+                              >
+                                {statusLabel}
+                              </span>
+                            </div>
+
+                            <p className="mt-4 text-base font-semibold leading-7 text-slate-950 dark:text-white">
+                              {item.prompt}
+                            </p>
+
+                            {item.options.length > 0 && (
+                              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                                {item.options.map((option) => {
+                                  const selected =
+                                    normalizeAnswerText(option) === normalizeAnswerText(item.userAnswer)
+                                  const correct =
+                                    normalizeAnswerText(option) === normalizeAnswerText(item.correctAnswer)
+
+                                  return (
+                                    <div
+                                      key={option}
+                                      className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                                        correct
+                                          ? 'border-emerald-300 bg-emerald-100/80 text-emerald-900 dark:border-emerald-300/30 dark:bg-emerald-400/15 dark:text-emerald-100'
+                                          : selected
+                                            ? 'border-rose-300 bg-rose-100/75 text-rose-900 dark:border-rose-300/30 dark:bg-rose-400/15 dark:text-rose-100'
+                                            : 'border-[var(--border)] bg-white/60 text-slate-700 dark:bg-slate-950/30 dark:text-slate-200'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span>{option}</span>
+                                        {correct && <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-200" />}
+                                      </div>
+                                      {selected && (
+                                        <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em]">
+                                          {t.submittedAnswer}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+
+                            <div className="mt-4 grid gap-3 md:grid-cols-2">
+                              <div className="rounded-2xl border border-[var(--border)] bg-white/62 px-4 py-3 dark:bg-slate-950/30">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                                  {t.submittedAnswer}
+                                </p>
+                                <p className="mt-2 text-sm font-semibold text-slate-950 dark:text-white">
+                                  {item.userAnswer.trim() || t.notAnswered}
+                                </p>
+                              </div>
+                              {(item.correctAnswer || item.acceptedAnswers.length > 0 || item.aiSampleAnswer) && (
+                                <div className="rounded-2xl border border-[var(--border)] bg-white/62 px-4 py-3 dark:bg-slate-950/30">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                                    {item.type === 'open_ended'
+                                      ? t.expectedAnswer
+                                      : item.acceptedAnswers.length > 1
+                                        ? t.acceptedAnswersList
+                                        : t.correctOption}
+                                  </p>
+                                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-950 dark:text-white">
+                                    {item.type === 'open_ended'
+                                      ? item.aiSampleAnswer
+                                      : item.acceptedAnswers.length > 1
+                                        ? item.acceptedAnswers.join(', ')
+                                        : item.correctAnswer}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+
+                            {(item.explanation || item.gradingNotes.length > 0) && (
+                              <div className="mt-3 rounded-2xl border border-[var(--border)] bg-white/48 px-4 py-3 text-sm leading-6 text-slate-600 dark:bg-slate-950/25 dark:text-slate-300">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                                  {t.feedback}
+                                </p>
+                                {item.explanation && <p className="mt-2">{item.explanation}</p>}
+                                {item.gradingNotes.length > 0 && (
+                                  <p className="mt-2">{item.gradingNotes.join(' ')}</p>
+                                )}
+                              </div>
+                            )}
+                          </article>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </article>
                 )
               })}

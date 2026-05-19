@@ -119,12 +119,15 @@ BEGIN
         RAISE EXCEPTION 'Only admins can change user roles.';
     END IF;
 
-    IF next_role NOT IN ('teacher', 'student') THEN
-        RAISE EXCEPTION 'Admins can assign teacher or student roles only.';
+    IF next_role NOT IN ('admin', 'teacher', 'student') THEN
+        RAISE EXCEPTION 'Admins can assign admin, teacher, or student roles only.';
     END IF;
 
     UPDATE public.profiles
-    SET role = next_role, requested_role = next_role, updated_at = NOW()
+    SET
+        role = next_role,
+        requested_role = CASE WHEN next_role = 'admin' THEN requested_role ELSE next_role END,
+        updated_at = NOW()
     WHERE id = target_user_id
     RETURNING * INTO updated_profile;
 
@@ -133,6 +136,34 @@ BEGIN
     END IF;
 
     RETURN updated_profile;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_delete_user(target_user_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+    IF public.current_user_role() <> 'admin' THEN
+        RAISE EXCEPTION 'Only admins can delete users.';
+    END IF;
+
+    IF target_user_id = auth.uid() THEN
+        RAISE EXCEPTION 'Admins cannot delete their own account from the admin panel.';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = target_user_id) THEN
+        RAISE EXCEPTION 'User profile was not found.';
+    END IF;
+
+    DELETE FROM public.exam_attempts WHERE user_id = target_user_id;
+    DELETE FROM public.tasks WHERE user_id = target_user_id;
+    DELETE FROM public.exams WHERE user_id = target_user_id;
+    DELETE FROM public.lecture_files WHERE user_id = target_user_id;
+    DELETE FROM public.profiles WHERE id = target_user_id;
+    DELETE FROM auth.users WHERE id = target_user_id;
 END;
 $$;
 
@@ -155,6 +186,7 @@ CREATE POLICY "Users can update their own profile" ON public.profiles
 
 GRANT SELECT, INSERT, UPDATE ON TABLE public.profiles TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_user_role(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_teacher_profile(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_teacher_profile_id(TEXT) TO authenticated;
 
@@ -194,10 +226,14 @@ DROP POLICY IF EXISTS "Users can insert their own lecture files" ON public.lectu
 CREATE POLICY "Users can insert their own lecture files" ON public.lecture_files
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- User can only delete their own files
+-- Users can delete their own files; admins can clean stale lecture rows.
 DROP POLICY IF EXISTS "Users can delete their own lecture files" ON public.lecture_files;
-CREATE POLICY "Users can delete their own lecture files" ON public.lecture_files
-    FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users and admins can delete lecture files" ON public.lecture_files;
+CREATE POLICY "Users and admins can delete lecture files" ON public.lecture_files
+    FOR DELETE USING (
+        auth.uid() = user_id
+        OR public.current_user_role() = 'admin'
+    );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.lecture_files TO authenticated;
 
@@ -432,7 +468,16 @@ DROP POLICY IF EXISTS "Users can delete their own exam attempts" ON public.exam_
 DROP POLICY IF EXISTS "Students and owning teachers can delete exam attempts" ON public.exam_attempts;
 CREATE POLICY "Students and owning teachers can delete exam attempts" ON public.exam_attempts
     FOR DELETE USING (
-        auth.uid() = user_id
+        (
+            auth.uid() = user_id
+            AND EXISTS (
+                SELECT 1
+                FROM public.exams
+                WHERE exams.id = exam_attempts.exam_id
+                  AND exams.exam_kind = 'practice'
+                  AND exams.user_id = auth.uid()
+            )
+        )
         OR EXISTS (
             SELECT 1
             FROM public.exams
@@ -467,6 +512,33 @@ CREATE POLICY "Teachers can view profiles for their exam attempts" ON public.pro
 
 CREATE INDEX IF NOT EXISTS exam_attempts_exam_created_at_idx
     ON public.exam_attempts (exam_id, created_at DESC);
+
+-- Official exams are single-attempt per student. Practice exams can still be retaken.
+-- If duplicate official attempts already exist from older app behavior, this notice keeps
+-- the setup script running; clean those duplicates and rerun this block to add the index.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_indexes
+        WHERE schemaname = 'public'
+          AND indexname = 'exam_attempts_one_official_per_student_idx'
+    ) THEN
+        IF EXISTS (
+            SELECT 1
+            FROM public.exam_attempts
+            WHERE attempt_payload->>'examKind' = 'official'
+            GROUP BY exam_id, user_id
+            HAVING COUNT(*) > 1
+        ) THEN
+            RAISE NOTICE 'Skipped exam_attempts_one_official_per_student_idx because duplicate official attempts already exist.';
+        ELSE
+            CREATE UNIQUE INDEX exam_attempts_one_official_per_student_idx
+                ON public.exam_attempts (exam_id, user_id)
+                WHERE attempt_payload->>'examKind' = 'official';
+        END IF;
+    END IF;
+END $$;
 
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.exams TO authenticated;

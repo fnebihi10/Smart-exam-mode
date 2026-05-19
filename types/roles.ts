@@ -25,6 +25,6 @@ export const normalizeUserRole = (
 
 export const roleLabels: Record<UserRole, string> = {
   admin: 'Admin',
-  teacher: 'Teacher',
+  teacher: 'Professor',
   student: 'Student',
 }

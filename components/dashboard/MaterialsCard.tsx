@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AlertCircle,
+  Bot,
   CalendarDays,
   CheckCircle2,
   Database,
@@ -29,8 +31,8 @@ const copy = {
     badge: 'Lecture library',
     title: 'Uploaded materials',
     description: 'This is now the single home for lecture files, which keeps the rest of the dashboard cleaner.',
-    studentTitle: 'Teacher lecture materials',
-    studentDescription: 'Read teacher-uploaded lectures here, then use them as sources for your private practice exams.',
+    studentTitle: 'Professor lecture materials',
+    studentDescription: 'Read professor-uploaded lectures here, then use them as sources for your private practice exams.',
     state: 'Status',
     formats: 'Formats',
     stored: 'stored files',
@@ -52,10 +54,11 @@ const copy = {
     loadError: 'Could not load your lecture materials.',
     emptyTitle: 'No materials yet',
     emptyBody: 'Upload a lecture and this area becomes your main study library.',
-    studentEmptyTitle: 'No teacher lectures yet',
-    studentEmptyBody: 'When a teacher uploads lectures, they will appear here for reading and practice exams.',
+    studentEmptyTitle: 'No professor lectures yet',
+    studentEmptyBody: 'When a professor uploads lectures, they will appear here for reading and practice exams.',
     delete: 'Delete',
     view: 'View',
+    askAi: 'Ask AI',
     previewError: 'Could not open the file preview.',
     sessionExpired: 'Your session expired. Please sign in again.',
     noFile: 'No file selected.',
@@ -71,7 +74,7 @@ const getErrorMessage = (error: unknown, fallback: string) => {
 }
 
 export default function MaterialsCard() {
-  const { role, user } = useAuth()
+  const { role, roleLoading, user } = useAuth()
   const { locale } = useAppLocale()
   const t = copy[locale]
   const supabase = useSupabaseBrowserClient()
@@ -83,15 +86,19 @@ export default function MaterialsCard() {
   const [success, setSuccess] = useState('')
   const [activeFileId, setActiveFileId] = useState<string | null>(null)
   const [activeAction, setActiveAction] = useState<'view' | 'delete' | null>(null)
+  const fileRequestRef = useRef(0)
   const canUpload = role === 'teacher'
   const isStudent = role === 'student'
 
   const fetchFiles = useCallback(async () => {
-    if (!user) {
+    if (!user || roleLoading) {
       setFiles([])
-      setLoading(false)
+      if (!roleLoading) setLoading(false)
       return
     }
+
+    const requestId = fileRequestRef.current + 1
+    fileRequestRef.current = requestId
 
     try {
       setLoading(true)
@@ -99,17 +106,22 @@ export default function MaterialsCard() {
         supabase,
         user.id,
         undefined,
-        isStudent ? 'visible' : 'own'
+        role === 'teacher' ? 'own' : 'visible'
       )
+      if (fileRequestRef.current !== requestId) return
       setFiles(data)
     } catch (err: unknown) {
+      if (fileRequestRef.current !== requestId) return
       setError(getErrorMessage(err, t.loadError))
     } finally {
+      if (fileRequestRef.current !== requestId) return
       setLoading(false)
     }
-  }, [isStudent, supabase, t.loadError, user])
+  }, [role, roleLoading, supabase, t.loadError, user])
 
   useEffect(() => {
+    if (roleLoading) return
+
     if (user) {
       void fetchFiles()
       return
@@ -117,7 +129,7 @@ export default function MaterialsCard() {
 
     setFiles([])
     setLoading(false)
-  }, [fetchFiles, user])
+  }, [fetchFiles, roleLoading, user])
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!canUpload) {
@@ -387,6 +399,13 @@ export default function MaterialsCard() {
                     <Eye className="h-4 w-4" />
                     {t.view}
                   </button>
+                  <Link
+                    href={{ pathname: '/dashboard/ai-chat', query: { lecture: file.id } }}
+                    className="secondary-button px-4 py-2 hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  >
+                    <Bot className="h-4 w-4" />
+                    {t.askAi}
+                  </Link>
                   {canUpload && (
                     <button
                       type="button"

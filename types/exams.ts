@@ -133,9 +133,9 @@ export const EXAM_CATEGORY_META: Record<
   }
 > = {
   multiple_choice: {
-    label: 'Multiple choice',
-    shortLabel: 'MCQ',
-    helper: 'Two or more options per question with one correct answer.',
+    label: 'Single choice',
+    shortLabel: 'Single',
+    helper: 'Several options per question with one correct answer.',
   },
   fill_in_blank: {
     label: 'Fill in the blank',

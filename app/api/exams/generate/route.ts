@@ -201,7 +201,7 @@ const sanitizeQuestion = (question: unknown, index: number, points: number): Exa
 }
 
 const questionTypeLabels: Record<ExamQuestionType, string> = {
-  multiple_choice: 'multiple-choice',
+  multiple_choice: 'single-choice',
   fill_in_blank: 'fill-in-the-blank',
   open_ended: 'open-ended',
 }

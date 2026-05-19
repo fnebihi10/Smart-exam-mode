@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { type CSSProperties, useState } from 'react'
-import { BookOpen, FileCheck2, GraduationCap, LayoutDashboard, LogOut, Radio, ShieldCheck, Sparkles } from 'lucide-react'
+import { BarChart3, BookOpen, Bot, FileCheck2, GraduationCap, LayoutDashboard, LogOut, Radio, Sparkles, UsersRound } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import ThemeToggle from '@/components/ThemeToggle'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
@@ -16,7 +16,10 @@ const copy = {
     exams: 'Official exams',
     practice: 'Practice',
     liveExams: 'Live exams',
-    admin: 'Admin',
+    results: 'Results',
+    admin: 'Admin control',
+    preview: 'Exam previews',
+    aiChat: 'AI Chat',
     focused: 'Focused workflow',
     focusedBody: 'Navigation adapts to your role so each workspace keeps its own responsibilities.',
     logout: 'Sign out',
@@ -33,19 +36,25 @@ export default function Sidebar() {
     role === 'admin'
       ? [
           { name: t.summary, href: '/dashboard', icon: LayoutDashboard },
-          { name: t.admin, href: '/dashboard/admin', icon: ShieldCheck },
+          { name: t.admin, href: '/dashboard/admin', icon: UsersRound },
+          { name: t.preview, href: '/dashboard/admin/previews', icon: FileCheck2 },
+          { name: t.aiChat, href: '/dashboard/ai-chat', icon: Bot },
         ]
       : role === 'teacher'
         ? [
             { name: t.summary, href: '/dashboard', icon: LayoutDashboard },
             { name: t.lectures, href: '/dashboard/lectures', icon: BookOpen },
             { name: t.exams, href: '/dashboard/exams', icon: FileCheck2 },
+            { name: t.results, href: '/dashboard/results', icon: BarChart3 },
+            { name: t.aiChat, href: '/dashboard/ai-chat', icon: Bot },
           ]
         : [
             { name: t.summary, href: '/dashboard', icon: LayoutDashboard },
             { name: t.lectures, href: '/dashboard/lectures', icon: BookOpen },
             { name: t.practice, href: '/dashboard/exams', icon: FileCheck2 },
             { name: t.liveExams, href: '/dashboard/live-exams', icon: Radio },
+            { name: t.results, href: '/dashboard/results', icon: BarChart3 },
+            { name: t.aiChat, href: '/dashboard/ai-chat', icon: Bot },
           ]
 
   const handleLogout = async () => {
@@ -62,8 +71,8 @@ export default function Sidebar() {
               <GraduationCap className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">Smart Exam Mode</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{t.subtitle}</p>
+              <p className="text-sm font-extrabold text-slate-950 dark:text-white">Smart Exam Mode</p>
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{t.subtitle}</p>
             </div>
           </Link>
           <ThemeToggle />
@@ -74,12 +83,12 @@ export default function Sidebar() {
             <Sparkles className="h-3.5 w-3.5" />
             {t.focused}
           </span>
-          <p className="mt-3 text-sm leading-5 text-slate-600 dark:text-slate-300">
+          <p className="mt-3 text-sm font-medium leading-5 text-slate-700 dark:text-slate-300">
             {t.focusedBody}
           </p>
         </div>
 
-        <nav className="mt-3.5 min-h-0">
+        <nav className="custom-scrollbar mt-3.5 min-h-0 flex-1 overflow-y-auto pr-1">
           <ul className="space-y-2">
             {links.map(({ name, href, icon: Icon }, index) => {
             const isActive = pathname === href
@@ -92,10 +101,10 @@ export default function Sidebar() {
               >
                 <Link
                   href={href}
-                  className={`group/nav relative flex items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-sm font-medium transition-[transform,background-color,color,box-shadow,border-color] duration-300 ${
+                  className={`group/nav relative flex items-center gap-3 overflow-hidden rounded-2xl px-4 py-3 text-sm font-extrabold transition-[transform,background-color,color,box-shadow,border-color] duration-300 ${
                     isActive
-                      ? 'bg-[var(--accent-soft)] text-slate-900 shadow-[inset_0_0_0_1px_rgba(var(--color-primary-rgb),0.2),var(--shadow-sm)] dark:text-white'
-                      : 'text-slate-600 hover:translate-x-[3px] hover:bg-white/60 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-white'
+                      ? 'bg-[var(--accent-soft)] text-slate-950 shadow-[inset_0_0_0_1px_rgba(var(--color-primary-rgb),0.2),var(--shadow-sm)] dark:text-white'
+                      : 'text-slate-800 hover:translate-x-[3px] hover:bg-white/60 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-slate-900/70 dark:hover:text-white'
                   }`}
                 >
                   {isActive && (
@@ -103,8 +112,8 @@ export default function Sidebar() {
                   )}
                   <div className={`icon-shell h-8 w-8 rounded-xl transition-[transform,box-shadow,background-color] duration-300 group-hover/nav:shadow-depth-sm ${
                     isActive
-                      ? 'border-transparent bg-white/80 text-[var(--accent)] dark:bg-slate-900/80'
-                      : 'border-[var(--border)] bg-white/50 text-slate-500 dark:bg-slate-900/60 dark:text-slate-400'
+                      ? 'border-[rgba(var(--color-primary-rgb),0.24)] bg-[var(--accent-soft)] text-[var(--accent-strong)] dark:text-[var(--accent)]'
+                      : 'border-[rgba(var(--color-primary-rgb),0.18)] bg-[var(--accent-soft)] text-[var(--accent-strong)] dark:text-[var(--accent)]'
                   }`}>
                     <Icon className="h-4 w-4" />
                   </div>
@@ -116,12 +125,12 @@ export default function Sidebar() {
           </ul>
         </nav>
 
-        <div className="mt-6 animate-fadeInUp [animation-delay:360ms] [animation-fill-mode:both]">
+        <div className="mt-auto pt-4 animate-fadeInUp [animation-delay:360ms] [animation-fill-mode:both]">
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="secondary-button w-full justify-center"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-depth-sm transition hover:-translate-y-0.5 hover:bg-rose-700 hover:shadow-depth-md disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loggingOut ? (
               <span className="spinner-arc h-4 w-4" />
