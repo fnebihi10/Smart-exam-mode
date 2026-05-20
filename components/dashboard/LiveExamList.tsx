@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Clock3, Play, Radio, RefreshCcw } from 'lucide
 import { useAuth } from '@/contexts/AuthContext'
 import { useAppLocale } from '@/components/i18n/useAppLocale'
 import type { StoredExamRecord } from '@/types/exams'
+import { isAttemptForCurrentLiveSession } from '@/utils/examLiveSessions'
 import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 const copy = {
@@ -28,7 +29,7 @@ const copy = {
     join: 'Join exam',
     completed: 'Completed',
     reviewResults: 'Review results',
-    completedHint: 'You already submitted this exam. Official exams can only be taken once.',
+    completedHint: 'You already submitted this exam during the current live session.',
     studentOnly: 'Live official exams are only available to student accounts.',
   },} as const
 
@@ -89,7 +90,7 @@ export default function LiveExamList() {
       if (examIds.length > 0) {
         const { data: attempts, error: attemptsError } = await supabase
           .from('exam_attempts')
-          .select('exam_id')
+          .select('exam_id, created_at, attempt_payload')
           .eq('user_id', user.id)
           .in('exam_id', examIds)
 
@@ -97,8 +98,19 @@ export default function LiveExamList() {
           throw new Error(attemptsError.message)
         }
 
+        const examsById = new Map(nextExams.map((exam) => [exam.id, exam]))
+
         nextCompletedExamIds = new Set(
-          ((attempts || []) as Array<{ exam_id: string }>).map((attempt) => attempt.exam_id)
+          ((attempts || []) as Array<{
+            exam_id: string
+            created_at: string
+            attempt_payload: { liveSessionId?: string } | null
+          }>)
+            .filter((attempt) => {
+              const exam = examsById.get(attempt.exam_id)
+              return exam ? isAttemptForCurrentLiveSession(attempt, exam) : false
+            })
+            .map((attempt) => attempt.exam_id)
         )
       }
 

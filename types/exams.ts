@@ -102,6 +102,9 @@ export interface OpenEndedGrade {
 export interface ExamAttemptPayload {
   examTitle?: string
   examKind?: ExamKind
+  liveSessionId?: string
+  liveSessionPublishedAt?: string | null
+  liveSessionUntil?: string | null
   answers: ExamAttemptAnswer[]
   objectiveScore: number
   objectiveMaxScore: number

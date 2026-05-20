@@ -30,6 +30,7 @@ import {
   type StoredExamRecord,
 } from '@/types/exams'
 import { isFillInAnswerCorrect, normalizeAnswerText } from '@/utils/examGrading'
+import { getExamLiveSessionId, isAttemptForCurrentLiveSession } from '@/utils/examLiveSessions'
 import { useSupabaseBrowserClient } from '@/utils/supabase/browser-client'
 
 const VIOLATION_LIMIT = 3
@@ -89,9 +90,9 @@ const copy = {
     reviewResults: 'Open results review',
     returnToExams: 'Return to exams',
     takeAnother: 'Back to builder',
-    alreadySubmittedTitle: 'You already submitted this official exam.',
+    alreadySubmittedTitle: 'You already submitted this live session.',
     alreadySubmittedBody:
-      'Official exams can only be taken once. Open Results to review your answers and score.',
+      'You can review your answers and score in Results. If the professor reopens this exam later, you can join the new live session once.',
     backToLiveExams: 'Back to live exams',
     answeredCount: 'Answered questions',
     violationsCount: 'Violation count',
@@ -335,16 +336,20 @@ export default function ExamRunner({
         if (role === 'student' && nextExamRecord.exam_kind === 'official') {
           const { data: existingAttempts, error: existingAttemptError } = await supabase
             .from('exam_attempts')
-            .select('id')
+            .select('id, created_at, attempt_payload')
             .eq('exam_id', nextExamRecord.id)
             .eq('user_id', user.id)
-            .limit(1)
 
           if (existingAttemptError && !isAttemptTableMissing(existingAttemptError.message)) {
             throw new Error(existingAttemptError.message)
           }
 
-          if (existingAttempts && existingAttempts.length > 0) {
+          const hasCurrentLiveSessionAttempt = ((existingAttempts || []) as Array<{
+            created_at: string
+            attempt_payload: { liveSessionId?: string } | null
+          }>).some((attempt) => isAttemptForCurrentLiveSession(attempt, nextExamRecord))
+
+          if (hasCurrentLiveSessionAttempt) {
             setExamRecord(nextExamRecord)
             setTimeLeft(0)
             setSessionDurationSeconds(0)
@@ -517,6 +522,9 @@ export default function ExamRunner({
       const payload: ExamAttemptPayload = {
         examTitle: exam.title,
         examKind: examRecord.exam_kind,
+        liveSessionId: getExamLiveSessionId(examRecord) ?? undefined,
+        liveSessionPublishedAt: examRecord.exam_kind === 'official' ? examRecord.published_at : null,
+        liveSessionUntil: examRecord.exam_kind === 'official' ? examRecord.live_until : null,
         answers: answersList,
         objectiveScore: totalScore,
         objectiveMaxScore: totalMaxScore,

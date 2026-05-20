@@ -513,29 +513,33 @@ CREATE POLICY "Teachers can view profiles for their exam attempts" ON public.pro
 CREATE INDEX IF NOT EXISTS exam_attempts_exam_created_at_idx
     ON public.exam_attempts (exam_id, created_at DESC);
 
--- Official exams are single-attempt per student. Practice exams can still be retaken.
--- If duplicate official attempts already exist from older app behavior, this notice keeps
--- the setup script running; clean those duplicates and rerun this block to add the index.
+-- Official exams are single-attempt per live session. Reopening an exam creates a
+-- new live session through a new exams.published_at value, which the app stores
+-- in attempt_payload->>'liveSessionId'. Practice exams can still be retaken.
+DROP INDEX IF EXISTS public.exam_attempts_one_official_per_student_idx;
+
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM pg_indexes
         WHERE schemaname = 'public'
-          AND indexname = 'exam_attempts_one_official_per_student_idx'
+          AND indexname = 'exam_attempts_one_official_session_per_student_idx'
     ) THEN
         IF EXISTS (
             SELECT 1
             FROM public.exam_attempts
             WHERE attempt_payload->>'examKind' = 'official'
-            GROUP BY exam_id, user_id
+              AND attempt_payload ? 'liveSessionId'
+            GROUP BY exam_id, user_id, (attempt_payload->>'liveSessionId')
             HAVING COUNT(*) > 1
         ) THEN
-            RAISE NOTICE 'Skipped exam_attempts_one_official_per_student_idx because duplicate official attempts already exist.';
+            RAISE NOTICE 'Skipped exam_attempts_one_official_session_per_student_idx because duplicate official attempts already exist for a live session.';
         ELSE
-            CREATE UNIQUE INDEX exam_attempts_one_official_per_student_idx
-                ON public.exam_attempts (exam_id, user_id)
-                WHERE attempt_payload->>'examKind' = 'official';
+            CREATE UNIQUE INDEX exam_attempts_one_official_session_per_student_idx
+                ON public.exam_attempts (exam_id, user_id, (attempt_payload->>'liveSessionId'))
+                WHERE attempt_payload->>'examKind' = 'official'
+                  AND attempt_payload ? 'liveSessionId';
         END IF;
     END IF;
 END $$;
