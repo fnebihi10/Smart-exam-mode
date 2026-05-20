@@ -89,6 +89,10 @@ OPENAI_CHAT_MODEL=gpt-4o-mini
 - Keep a prepared demo account and 1-2 sample lecture files ready
 - Review [docs/demo-plan.md](docs/demo-plan.md) before presenting
 
+## Project documentation
+
+- Full Albanian project documentation: [DOKUMENTIMI_PROJEKTIT.md](DOKUMENTIMI_PROJEKTIT.md)
+
 ## Live URL
 
 https://smart-exam-mode.vercel.app/
