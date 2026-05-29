@@ -24,6 +24,11 @@ const questionTypeOrder: ExamQuestionType[] = [
 
 const MAX_TITLE_CHARS = 120
 const MAX_TOPIC_FOCUS_CHARS = 1200
+const MAX_SELECTED_LECTURES = 6
+const MAX_TOTAL_QUESTIONS = 30
+const MAX_GENERATION_CONTEXT_CHARS = 18000
+const MAX_GENERATION_PDF_PAGES = 15
+const OPENAI_EXAM_REQUEST_TIMEOUT_MS = 42_000
 const MAX_EXAM_COMPLETION_TOKENS = 9000
 const QUESTION_BATCH_SIZE = 10
 const MAX_BATCH_ATTEMPTS = 3
@@ -324,6 +329,188 @@ const readQuestionsArray = (raw: unknown) => {
   return []
 }
 
+const buildFullExamPrompt = (
+  request: ExamGenerationRequest,
+  lectureContext: string
+) => {
+  const languageInstruction =
+    request.language === 'sq'
+      ? 'Write every question and answer field in Albanian.'
+      : 'Write every question and answer field in English.'
+
+  const categoryPlan = request.categories
+    .map(
+      (category) =>
+        `- ${category.count} ${questionTypeLabels[category.type]} question(s) with type "${category.type}", ${category.points} point(s) each`
+    )
+    .join('\n')
+
+  return `You are an expert exam designer for a study platform.
+
+Generate a complete exam named "${request.title}".
+
+Requirements:
+- Topic focus: ${request.topicFocus || 'Use the uploaded lecture materials as the main focus.'}
+- Difficulty: ${request.difficulty}
+- ${languageInstruction}
+- Use the uploaded lecture context as the primary source whenever possible.
+- If the lecture context is empty, use the topic focus as the fallback.
+- Avoid duplicate prompts.
+- Return valid JSON only. Do not wrap it in markdown.
+
+Category plan:
+${categoryPlan}
+
+Question object shapes:
+- multiple_choice: {"type":"multiple_choice","prompt":"string","points":number,"options":["string","string","string","string"],"correctAnswer":"string","explanation":"string"}
+- fill_in_blank: {"type":"fill_in_blank","prompt":"string","points":number,"correctAnswer":"string","acceptableAnswers":["string"],"explanation":"string"}
+- open_ended: {"type":"open_ended","prompt":"string","points":number,"sampleAnswer":"string","gradingNotes":["string","string"]}
+
+Return exactly this JSON object:
+{
+  "questions": []
+}
+
+The "questions" array must contain exactly the counts from the category plan.
+
+LECTURE CONTEXT:
+${lectureContext || 'No uploaded lecture materials were found for this user.'}`
+}
+
+const createQuestionBuckets = (): Record<ExamQuestionType, ExamQuestion[]> => ({
+  multiple_choice: [],
+  fill_in_blank: [],
+  open_ended: [],
+})
+
+const getMissingCounts = (
+  questions: ExamQuestion[],
+  request: ExamGenerationRequest
+) =>
+  request.categories.reduce<Partial<Record<ExamQuestionType, number>>>(
+    (counts, category) => {
+      const currentCount = questions.filter(
+        (question) => question.type === category.type
+      ).length
+      const missing = category.count - currentCount
+
+      if (missing > 0) {
+        counts[category.type] = missing
+      }
+
+      return counts
+    },
+    {}
+  )
+
+const hasMissingCounts = (
+  counts: Partial<Record<ExamQuestionType, number>>
+) => questionTypeOrder.some((type) => (counts[type] ?? 0) > 0)
+
+const formatMissingCounts = (
+  counts: Partial<Record<ExamQuestionType, number>>
+) =>
+  questionTypeOrder
+    .filter((type) => (counts[type] ?? 0) > 0)
+    .map((type) => `${type}: ${counts[type]}`)
+    .join(', ')
+
+const orderQuestionsByRequest = (
+  questions: ExamQuestion[],
+  request: ExamGenerationRequest
+) =>
+  request.categories.flatMap((category) =>
+    questions
+      .filter((question) => question.type === category.type)
+      .slice(0, category.count)
+  )
+
+const collectGeneratedQuestions = (
+  rawQuestions: unknown[],
+  request: ExamGenerationRequest,
+  existingPrompts: string[] = []
+) => {
+  const categoryByType = new Map(
+    request.categories.map((category) => [category.type, category])
+  )
+  const buckets = createQuestionBuckets()
+  const seenPrompts = new Set(existingPrompts.map(normalizePromptKey))
+
+  rawQuestions.forEach((question, index) => {
+    const safeQuestion = asRecord(question)
+    const type = normalizeQuestionType(safeQuestion.type, safeQuestion)
+    const category = categoryByType.get(type)
+
+    if (!category || buckets[type].length >= category.count) {
+      return
+    }
+
+    const sanitized = sanitizeQuestion(question, index, category.points)
+    const promptKey = normalizePromptKey(sanitized.prompt)
+
+    if (sanitized.type !== type || seenPrompts.has(promptKey)) {
+      return
+    }
+
+    seenPrompts.add(promptKey)
+    buckets[type].push({ ...sanitized, points: category.points })
+  })
+
+  const questions = request.categories.flatMap((category) => buckets[category.type])
+
+  return {
+    questions,
+    missingCounts: getMissingCounts(questions, request),
+  }
+}
+
+const generateFullQuestionSet = async (
+  client: ReturnType<typeof createOpenAIClient>,
+  request: ExamGenerationRequest,
+  lectureContext: string
+) => {
+  const totalQuestions = request.categories.reduce(
+    (sum, category) => sum + category.count,
+    0
+  )
+  const completion = await client.chat.completions.create(
+    {
+      model: examModel,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You create complete exams from lecture material. Return only valid JSON that matches the requested shape.',
+        },
+        {
+          role: 'user',
+          content: buildFullExamPrompt(request, lectureContext),
+        },
+      ],
+      temperature: 0.45,
+      max_completion_tokens: Math.min(
+        MAX_EXAM_COMPLETION_TOKENS,
+        1400 + totalQuestions * 360
+      ),
+      response_format: { type: 'json_object' },
+    },
+    {
+      maxRetries: 0,
+      timeout: OPENAI_EXAM_REQUEST_TIMEOUT_MS,
+    }
+  )
+
+  const content = completion.choices[0]?.message.content
+
+  if (!content) {
+    throw new Error('The AI model returned an empty response.')
+  }
+
+  const parsed = JSON.parse(extractJson(content))
+
+  return collectGeneratedQuestions(readQuestionsArray(parsed), request)
+}
+
 const generateQuestionBatch = async (
   client: ReturnType<typeof createOpenAIClient>,
   request: ExamGenerationRequest,
@@ -339,31 +526,37 @@ const generateQuestionBatch = async (
 
   for (let attempt = 0; attempt < MAX_BATCH_ATTEMPTS && collected.length < count; attempt += 1) {
     const remaining = count - collected.length
-    const completion = await client.chat.completions.create({
-      model: examModel,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You create exam questions from lecture material. Follow the requested JSON schema exactly.',
-        },
-        {
-          role: 'user',
-          content: buildQuestionBatchPrompt(
-            request,
-            lectureContext,
-            type,
-            remaining,
-            points,
-            startIndex + collected.length,
-            [...existingPrompts, ...collected.map((question) => question.prompt)]
-          ),
-        },
-      ],
-      temperature: 0.45,
-      max_completion_tokens: Math.min(MAX_EXAM_COMPLETION_TOKENS, 1200 + remaining * 450),
-      response_format: { type: 'json_object' },
-    })
+    const completion = await client.chat.completions.create(
+      {
+        model: examModel,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You create exam questions from lecture material. Follow the requested JSON schema exactly.',
+          },
+          {
+            role: 'user',
+            content: buildQuestionBatchPrompt(
+              request,
+              lectureContext,
+              type,
+              remaining,
+              points,
+              startIndex + collected.length,
+              [...existingPrompts, ...collected.map((question) => question.prompt)]
+            ),
+          },
+        ],
+        temperature: 0.45,
+        max_completion_tokens: Math.min(MAX_EXAM_COMPLETION_TOKENS, 1200 + remaining * 450),
+        response_format: { type: 'json_object' },
+      },
+      {
+        maxRetries: 0,
+        timeout: OPENAI_EXAM_REQUEST_TIMEOUT_MS,
+      }
+    )
 
     const content = completion.choices[0]?.message.content
 
@@ -410,30 +603,51 @@ const generateExam = async (
   lectureContext: string
 ) => {
   const client = createOpenAIClient()
-  const finalQuestions: ExamQuestion[] = []
+  const generatedQuestionSet = await generateFullQuestionSet(
+    client,
+    normalizedRequest,
+    lectureContext
+  )
+  const finalQuestions = orderQuestionsByRequest(
+    generatedQuestionSet.questions,
+    normalizedRequest
+  )
+  const missingCounts = generatedQuestionSet.missingCounts
 
-  for (const category of normalizedRequest.categories) {
-    let remaining = category.count
+  if (hasMissingCounts(missingCounts)) {
+    for (const category of normalizedRequest.categories) {
+      let remaining = missingCounts[category.type] ?? 0
 
-    while (remaining > 0) {
-      const batchSize = Math.min(QUESTION_BATCH_SIZE, remaining)
-      const batch = await generateQuestionBatch(
-        client,
-        normalizedRequest,
-        lectureContext,
-        category.type,
-        batchSize,
-        category.points,
-        finalQuestions.length,
-        finalQuestions.map((question) => question.prompt)
-      )
+      while (remaining > 0) {
+        const batchSize = Math.min(QUESTION_BATCH_SIZE, remaining)
+        const batch = await generateQuestionBatch(
+          client,
+          normalizedRequest,
+          lectureContext,
+          category.type,
+          batchSize,
+          category.points,
+          finalQuestions.length,
+          finalQuestions.map((question) => question.prompt)
+        )
 
-      finalQuestions.push(...batch)
-      remaining -= batch.length
+        finalQuestions.push(...batch)
+        remaining -= batch.length
+      }
     }
   }
 
-  const totalPoints = finalQuestions.reduce((sum, question) => sum + question.points, 0)
+  const orderedQuestions = orderQuestionsByRequest(finalQuestions, normalizedRequest)
+  const remainingMissingCounts = getMissingCounts(orderedQuestions, normalizedRequest)
+
+  if (hasMissingCounts(remainingMissingCounts)) {
+    throw new ExamShapeError(
+      `The AI returned too few questions in some categories (${formatMissingCounts(remainingMissingCounts)} more needed).`,
+      remainingMissingCounts
+    )
+  }
+
+  const totalPoints = orderedQuestions.reduce((sum, question) => sum + question.points, 0)
 
   return {
     title: normalizedRequest.title,
@@ -443,7 +657,7 @@ const generateExam = async (
     difficulty: normalizedRequest.difficulty,
     estimatedDurationMinutes: clamp(normalizedRequest.estimatedDurationMinutes, 10, 240),
     totalPoints,
-    questions: finalQuestions,
+    questions: orderedQuestions,
   }
 }
 
@@ -493,9 +707,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (selectedLectureIds.length > 25) {
+    if (selectedLectureIds.length > MAX_SELECTED_LECTURES) {
       return NextResponse.json(
-        { error: 'Too many lectures selected. Please choose fewer sources.' },
+        { error: `Too many lectures selected. Please choose up to ${MAX_SELECTED_LECTURES} sources for one practice exam.` },
         { status: 400 }
       )
     }
@@ -549,15 +763,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (totalQuestions > 30) {
+    if (totalQuestions > MAX_TOTAL_QUESTIONS) {
       return NextResponse.json(
-        { error: 'Keep the generated exam at 30 questions or fewer for a stable response.' },
+        { error: `Keep the generated exam at ${MAX_TOTAL_QUESTIONS} questions or fewer for a stable response.` },
         { status: 400 }
       )
     }
 
     const lectureContext = normalizedRequest.selectedLectureIds.length
-      ? await getLectureContext(normalizedRequest.selectedLectureIds)
+      ? await getLectureContext(normalizedRequest.selectedLectureIds, {
+          maxChars: MAX_GENERATION_CONTEXT_CHARS,
+          maxPdfPages: MAX_GENERATION_PDF_PAGES,
+          fileLimit: MAX_SELECTED_LECTURES,
+        })
       : ''
 
     const exam = await generateExam(normalizedRequest, lectureContext)

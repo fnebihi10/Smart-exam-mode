@@ -11,10 +11,51 @@ type StoredLectureFile = {
   storage_path: string
 }
 
+type LectureContextOptions = {
+  maxChars?: number
+  maxPdfPages?: number
+  fileLimit?: number
+}
+
+const DEFAULT_CONTEXT_MAX_CHARS = 25000
+const DEFAULT_PDF_MAX_PAGES = 15
+const DEFAULT_FILE_LIMIT = 10
+const CONTEXT_TRUNCATION_NOTE = '\n... [Source text truncated]'
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value))
+
 const sanitizeStorageFileName = (name: string) =>
   name.replace(/[^a-zA-Z0-9.]/g, '_')
 
 const getPathFileName = (path: string) => path.split('/').filter(Boolean).at(-1) || path
+
+const appendSourceContext = (
+  currentContext: string,
+  fileName: string,
+  rawText: string,
+  maxChars: number
+) => {
+  const text = rawText.trim()
+
+  if (!text || currentContext.length >= maxChars) {
+    return currentContext
+  }
+
+  const header = `\n--- SOURCE: ${fileName} ---\n`
+  const remainingChars = maxChars - currentContext.length - header.length
+
+  if (remainingChars <= 0) {
+    return currentContext
+  }
+
+  const sourceText =
+    text.length > remainingChars
+      ? `${text.slice(0, Math.max(0, remainingChars - CONTEXT_TRUNCATION_NOTE.length))}${CONTEXT_TRUNCATION_NOTE}`
+      : text
+
+  return `${currentContext}${header}${sourceText}\n`
+}
 
 async function downloadLectureBlob(
   supabase: SupabaseClient,
@@ -79,8 +120,27 @@ async function downloadLectureBlob(
   return null
 }
 
-export async function getLectureContext(selectedLectureIds?: string[]) {
+export async function getLectureContext(
+  selectedLectureIds?: string[],
+  options: LectureContextOptions = {}
+) {
   try {
+    const maxChars = clamp(
+      Number(options.maxChars) || DEFAULT_CONTEXT_MAX_CHARS,
+      1000,
+      DEFAULT_CONTEXT_MAX_CHARS
+    )
+    const maxPdfPages = clamp(
+      Number(options.maxPdfPages) || DEFAULT_PDF_MAX_PAGES,
+      1,
+      100
+    )
+    const fileLimit = clamp(
+      Number(options.fileLimit) || DEFAULT_FILE_LIMIT,
+      1,
+      25
+    )
+
     const supabase = await createClient()
     const {
       data: { user },
@@ -120,7 +180,11 @@ export async function getLectureContext(selectedLectureIds?: string[]) {
 
     let combinedContext = ''
 
-    for (const file of files as StoredLectureFile[]) {
+    for (const file of (files as StoredLectureFile[]).slice(0, fileLimit)) {
+      if (combinedContext.length >= maxChars) {
+        break
+      }
+
       try {
         const blob = await downloadLectureBlob(supabase, file)
 
@@ -132,7 +196,7 @@ export async function getLectureContext(selectedLectureIds?: string[]) {
         let text = ''
 
         if (file.file_type.includes('pdf') || file.name.endsWith('.pdf')) {
-          const data = await pdf(buffer)
+          const data = await pdf(buffer, { max: maxPdfPages })
           text = data.text
         } else if (
           file.file_type.includes('wordprocessingml') ||
@@ -148,7 +212,12 @@ export async function getLectureContext(selectedLectureIds?: string[]) {
         }
 
         if (text.trim()) {
-          combinedContext += `\n--- SOURCE: ${file.name} ---\n${text}\n`
+          combinedContext = appendSourceContext(
+            combinedContext,
+            file.name,
+            text,
+            maxChars
+          )
         }
       } catch (fileError) {
         console.error(
@@ -158,7 +227,6 @@ export async function getLectureContext(selectedLectureIds?: string[]) {
       }
     }
 
-    const maxChars = 25000
     if (combinedContext.length > maxChars) {
       return `${combinedContext.slice(0, maxChars)}\n... [Pjesa tjeter e materialit eshte shkurtuar]`
     }

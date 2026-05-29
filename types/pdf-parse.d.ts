@@ -3,5 +3,12 @@ declare module 'pdf-parse' {
     text: string
   }
 
-  export default function pdfParse(dataBuffer: Buffer): Promise<PdfParseResult>
+  type PdfParseOptions = {
+    max?: number
+  }
+
+  export default function pdfParse(
+    dataBuffer: Buffer,
+    options?: PdfParseOptions
+  ): Promise<PdfParseResult>
 }
